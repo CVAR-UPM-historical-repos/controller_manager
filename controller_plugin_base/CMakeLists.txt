@@ -19,11 +19,23 @@ set(PROJECT_DEPENDENCIES
   rclcpp
   as2_core
   as2_msgs
+  nav_msgs
+  geometry_msgs
+  trajectory_msgs
 )
 
 foreach(DEPENDENCY ${PROJECT_DEPENDENCIES})
   find_package(${DEPENDENCY} REQUIRED)
 endforeach()
+
+
+include_directories(
+  include
+  include/${PROJECT_NAME}
+)
+
+add_executable(${PROJECT_NAME}_test test/plugin_base_build_test.cpp)
+ament_target_dependencies(${PROJECT_NAME}_test ${PROJECT_DEPENDENCIES})
 
 install(
   DIRECTORY include/
