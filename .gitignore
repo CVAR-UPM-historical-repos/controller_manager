@@ -39,5 +39,5 @@ devel
 
 # IDEs
 .vscode
-.config
+.cache
 
