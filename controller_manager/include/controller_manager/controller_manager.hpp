@@ -1,32 +1,35 @@
 #ifndef TAKE_OFF_BEHAVIOUR_HPP
 #define TAKE_OFF_BEHAVIOUR_HPP
 
-#include "as2_core/as2_basic_behaviour.hpp"
 #include "as2_core/names/actions.hpp"
 #include "as2_core/names/topics.hpp"
 
+#include <as2_core/node.hpp>
 #include <as2_msgs/action/take_off.hpp>
 
 #include <pluginlib/class_loader.hpp>
-#include "takeoff_plugin_base/takeoff_base.hpp"
+#include "controller_plugin_base/controller_base.hpp"
 
-class ControllerManager : public as2::BasicBehaviour<as2_msgs::action::TakeOff>
+class ControllerManager : public as2::Node
 {
 public:
-    using GoalHandleTakeoff = rclcpp_action::ServerGoalHandle<as2_msgs::action::TakeOff>;
 
-    ControllerManager() : as2::BasicBehaviour<as2_msgs::action::TakeOff>(as2_names::actions::behaviours::takeoff)
+    ControllerManager() : as2::Node("controller_manager")
     {
-        this->declare_parameter("default_takeoff_altitude");
-        this->declare_parameter("default_takeoff_speed");
-        this->declare_parameter("takeoff_height_threshold");
-
-        auto loader_ = std::make_shared<pluginlib::ClassLoader<takeoff_base::TakeOffBase>>("takeoff_plugin_base", "takeoff_base::TakeOffBase");
+        auto loader_ = std::make_shared<pluginlib::ClassLoader<controller_plugin_base::ControllerBase>>("controller_plugin_base", "controller_plugin_base::ControllerBase");
 
         try
         {
-            takeoff_speed_ = loader_->createSharedInstance("takeoff_plugins::TakeOffSpeed");
-            takeoff_speed_->initialize(this, this->get_parameter("takeoff_height_threshold").as_double());
+            auto controller_ = loader_->createSharedInstance("df_plugin::PDController");
+            auto a = loader_->getPluginManifestPath("df_plugin::PDController");
+            auto b = loader_->getPluginXmlPaths();
+
+            std :: cout << " Pluginlib ManifestPath" << a << std::endl;
+            for (auto& c : b)
+            {
+                std::cout << "PLUGIN XML PATH: " << c << std::endl;
+            }
+            
             RCLCPP_INFO(this->get_logger(), "PLUGIN LOADED");
         }
         catch (pluginlib::PluginlibException &ex)
@@ -36,8 +39,8 @@ public:
     };
 
 private:
-    std::shared_ptr<pluginlib::ClassLoader<takeoff_base::TakeOffBase>> loader_;
-    std::shared_ptr<takeoff_base::TakeOffBase> takeoff_speed_;
+    std::shared_ptr<pluginlib::ClassLoader<controller_plugin_base::ControllerBase>> loader_;
+    std::shared_ptr<controller_plugin_base::ControllerBase> controller_;
 };
 
 #endif // TAKE_OFF_BEHAVIOUR_HPP

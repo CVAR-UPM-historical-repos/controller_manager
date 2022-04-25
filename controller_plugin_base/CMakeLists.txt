@@ -22,6 +22,7 @@ set(PROJECT_DEPENDENCIES
   nav_msgs
   geometry_msgs
   trajectory_msgs
+  yaml-cpp
 )
 
 foreach(DEPENDENCY ${PROJECT_DEPENDENCIES})
@@ -36,6 +37,10 @@ include_directories(
 
 add_executable(${PROJECT_NAME}_test test/plugin_base_build_test.cpp)
 ament_target_dependencies(${PROJECT_NAME}_test ${PROJECT_DEPENDENCIES})
+
+add_executable(${PROJECT_NAME}_parser test/parser_test.cpp)
+target_link_libraries(${PROJECT_NAME}_parser yaml-cpp)
+ament_target_dependencies(${PROJECT_NAME}_parser ${PROJECT_DEPENDENCIES})
 
 install(
   DIRECTORY include/

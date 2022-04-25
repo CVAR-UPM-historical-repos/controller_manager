@@ -25,6 +25,11 @@ set(PROJECT_DEPENDENCIES
   trajectory_msgs
 )
 
+include_directories(
+  include
+  include/${PROJECT_NAME}
+)
+
 foreach(DEPENDENCY ${PROJECT_DEPENDENCIES})
   find_package(${DEPENDENCY} REQUIRED)
 endforeach()

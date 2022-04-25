@@ -1,0 +1,7 @@
+[
+{
+  "directory": "/home/miguel/aerostack2_ws/src/aerostack2/stack_devel/controller_manager/controller_manager/build/linux-debug",
+  "command": "/usr/bin/c++  -DDEFAULT_RMW_IMPLEMENTATION=rmw_fastrtps_cpp -DRCUTILS_ENABLE_FAULT_INJECTION -DROS_PACKAGE_NAME=\\\"controller_manager\\\" -DSPDLOG_COMPILED_LIB -I/home/miguel/aerostack2_ws/src/aerostack2/stack_devel/controller_manager/controller_manager/include -I/home/miguel/aerostack2_ws/src/aerostack2/stack_devel/controller_manager/controller_manager/include/controller_manager -I/home/miguel/aerostack2_ws/install/controller_plugin_base/include -I/home/miguel/aerostack2_ws/install/controller_plugin_base/include/controller_plugin_base -isystem /home/miguel/aerostack2_ws/install/as2_core/include -isystem /home/miguel/aerostack2_ws/install/as2_msgs/include -isystem /opt/ros/foxy/include  -g   -std=gnu++17 -o CMakeFiles/controller_manager_node.dir/src/controller_manager.cpp.o -c /home/miguel/aerostack2_ws/src/aerostack2/stack_devel/controller_manager/controller_manager/src/controller_manager.cpp",
+  "file": "/home/miguel/aerostack2_ws/src/aerostack2/stack_devel/controller_manager/controller_manager/src/controller_manager.cpp"
+}
+]
