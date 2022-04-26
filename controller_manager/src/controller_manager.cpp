@@ -8,7 +8,7 @@
 int main(int argc, char* argv[]) {
   setvbuf(stdout, NULL, _IONBF, BUFSIZ);
   rclcpp::init(argc, argv);
-  std::cout << "Starting Takeoff Behaviour" << std::endl;
+  std::cout << "Starting Controller Manager" << std::endl;
 
   auto node = std::make_shared<ControllerManager>();
   node->preset_loop_frequency(30);
