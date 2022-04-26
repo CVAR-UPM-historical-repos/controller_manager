@@ -24,6 +24,7 @@ set(PROJECT_DEPENDENCIES
   as2_msgs
   trajectory_msgs
   yaml-cpp
+  as2_control_command_handlers
 )
 
 include_directories(
