@@ -23,12 +23,12 @@ set(PROJECT_DEPENDENCIES
   geometry_msgs
   trajectory_msgs
   yaml-cpp
+  as2_control_command_handlers
 )
 
 foreach(DEPENDENCY ${PROJECT_DEPENDENCIES})
   find_package(${DEPENDENCY} REQUIRED)
 endforeach()
-
 
 include_directories(
   include
@@ -38,10 +38,6 @@ include_directories(
 add_executable(${PROJECT_NAME}_test test/plugin_base_build_test.cpp)
 ament_target_dependencies(${PROJECT_NAME}_test ${PROJECT_DEPENDENCIES})
 
-add_executable(${PROJECT_NAME}_parser test/parser_test.cpp)
-target_link_libraries(${PROJECT_NAME}_parser yaml-cpp)
-ament_target_dependencies(${PROJECT_NAME}_parser ${PROJECT_DEPENDENCIES})
-
 install(
   DIRECTORY include/
   DESTINATION include
@@ -49,7 +45,7 @@ install(
 
 ament_export_include_directories(
   include
-  include/${PROJECT_NAME}
+  # include/${PROJECT_NAME}
 )
 
 ament_package()

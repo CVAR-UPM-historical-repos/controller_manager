@@ -16,6 +16,7 @@
   <depend>nav_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>trajectory_msgs</depend>
+  <depend>as2_control_command_handlers</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
