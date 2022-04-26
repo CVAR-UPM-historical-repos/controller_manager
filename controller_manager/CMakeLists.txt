@@ -23,6 +23,7 @@ set(PROJECT_DEPENDENCIES
   as2_core
   as2_msgs
   trajectory_msgs
+  yaml-cpp
 )
 
 include_directories(
@@ -35,6 +36,7 @@ foreach(DEPENDENCY ${PROJECT_DEPENDENCIES})
 endforeach()
 
 add_executable(${PROJECT_NAME}_node src/controller_manager.cpp)
+target_link_libraries(${PROJECT_NAME}_node yaml-cpp)
 target_include_directories(${PROJECT_NAME}_node 
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
