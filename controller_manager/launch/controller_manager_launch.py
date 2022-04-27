@@ -9,9 +9,9 @@ from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
     config = join(
-        get_package_share_directory('controller_manager'),
+        get_package_share_directory('controller_plugin_differential_flatness'),
         'config',
-        'controller_manager.yaml'
+        'pd_controller.yaml'
     )
 
     return LaunchDescription([
@@ -21,7 +21,7 @@ def generate_launch_description():
             executable='controller_manager_node',
             name='controller_manager_node',
             namespace=LaunchConfiguration('drone_id'),
-            # parameters=[config],
+            parameters=[config],
             output='screen',
             emulate_tty=True
         )
