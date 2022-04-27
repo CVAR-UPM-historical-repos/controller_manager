@@ -37,8 +37,15 @@ class ControllerManager : public as2::Node {
   void config_available_control_modes(const std::filesystem::path project_path) {
     auto available_input_modes = as2::parse_uint_from_string(
         as2::find_tag_from_project_exports_path<std::string>(project_path, "input_control_modes"));
+    for (auto mode : available_input_modes) {
+      std::cout << "mode: " << (int) mode << std::endl;
+    }
     auto available_output_modes = as2::parse_uint_from_string(
         as2::find_tag_from_project_exports_path<std::string>(project_path, "output_control_modes"));
+    for (auto mode : available_output_modes) {
+      std::cout << "mode: " << (int) mode << std::endl;
+    }
+
     controller_->setInputControlModesAvailables(available_input_modes);
     controller_->setOutputControlModesAvailables(available_output_modes);
   };
