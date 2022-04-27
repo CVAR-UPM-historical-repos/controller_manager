@@ -3,11 +3,6 @@
 
 #include <as2_core/names/topics.hpp>
 #include <as2_core/synchronous_service_client.hpp>
-#include <as2_msgs/msg/detail/control_mode__struct.hpp>
-#include <as2_msgs/msg/detail/platform_info__struct.hpp>
-
-#include <as2_msgs/srv/detail/set_controller_control_mode__struct.hpp>
-#include <as2_msgs/srv/detail/set_platform_control_mode__struct.hpp>
 #include <fstream>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/service.hpp>
