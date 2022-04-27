@@ -5,6 +5,7 @@
 #include <as2_core/synchronous_service_client.hpp>
 #include <as2_msgs/msg/detail/control_mode__struct.hpp>
 #include <as2_msgs/msg/detail/platform_info__struct.hpp>
+
 #include <as2_msgs/srv/detail/set_controller_control_mode__struct.hpp>
 #include <as2_msgs/srv/detail/set_platform_control_mode__struct.hpp>
 #include <fstream>
@@ -36,6 +37,7 @@ class ControllerBase {
   std::vector<uint8_t> available_modes_out_;
   std::vector<uint8_t> platform_available_modes_in_;
 
+
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr ref_pose_sub_;
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr ref_twist_sub_;
@@ -50,6 +52,9 @@ class ControllerBase {
       set_control_mode_client_;
 
   bool control_mode_established_ = false;
+  bool motion_reference_adquired_ = false;
+  bool odometry_adquired_= false;
+
 
   public:
   ControllerBase(){};
@@ -121,14 +126,19 @@ class ControllerBase {
   as2::Node* node_ptr_;
 
   private:
-  void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) { updateState(*msg); };
+  void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
+    odometry_adquired_ = true;
+      updateState(*msg); };
   void ref_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
+    motion_reference_adquired_ = true;
     updateReference(*msg);
   };
   void ref_twist_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
+    motion_reference_adquired_ = true;
     updateReference(*msg);
   };
   void ref_traj_callback(const trajectory_msgs::msg::JointTrajectoryPoint::SharedPtr msg) {
+    motion_reference_adquired_ = true;
     updateReference(*msg);
   };
 
@@ -138,6 +148,11 @@ class ControllerBase {
 
   void control_timer_callback() {
     if (!platform_info_.offboard || !platform_info_.armed) {
+      return;
+    }
+
+    if (! odometry_adquired_ || ! motion_reference_adquired_) {
+      RCLCPP_INFO(node_ptr_->get_logger(), "Waiting for odometry and motion reference");
       return;
     }
 
@@ -175,6 +190,7 @@ class ControllerBase {
   }
 
   bool setPlatformControlMode(const as2_msgs::msg::ControlMode& mode) {
+    // FIXME : THIS SHOULD SET THE CONTROL MODE OF THE PLATFORM
     as2_msgs::srv::SetControlMode::Request set_control_mode_req;
     set_control_mode_req.control_mode = mode;
 
