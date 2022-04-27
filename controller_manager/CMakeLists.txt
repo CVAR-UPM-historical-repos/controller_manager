@@ -18,13 +18,13 @@ set(PROJECT_DEPENDENCIES
   pluginlib
   controller_plugin_base
   rclcpp
-  rclcpp_action
-  nav_msgs
   as2_core
   as2_msgs
-  trajectory_msgs
   yaml-cpp
   as2_control_command_handlers
+  geometry_msgs
+  nav_msgs
+  trajectory_msgs
 )
 
 include_directories(

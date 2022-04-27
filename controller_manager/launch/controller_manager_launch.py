@@ -9,19 +9,19 @@ from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
     config = join(
-        get_package_share_directory('takeoff_behaviour'),
+        get_package_share_directory('controller_manager'),
         'config',
-        'takeoff_behaviour.yaml'
+        'controller_manager.yaml'
     )
 
     return LaunchDescription([
         DeclareLaunchArgument('drone_id', default_value='drone0'),
         Node(
-            package='takeoff_behaviour',
-            executable='takeoff_behaviour_node',
-            name='takeoff_behaviour_node',
+            package='controller_manager',
+            executable='controller_manager_node',
+            name='controller_manager_node',
             namespace=LaunchConfiguration('drone_id'),
-            parameters=[config],
+            # parameters=[config],
             output='screen',
             emulate_tty=True
         )

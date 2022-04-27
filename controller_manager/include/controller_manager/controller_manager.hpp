@@ -1,18 +1,14 @@
-#ifndef TAKE_OFF_BEHAVIOUR_HPP
-#define TAKE_OFF_BEHAVIOUR_HPP
+#ifndef CONTROLLER_MANAGER_HPP
+#define CONTROLLER_MANAGER_HPP
 
 #include <as2_core/control_mode_utils/control_mode_utils.hpp>
 #include <as2_core/node.hpp>
 #include <as2_core/yaml_utils/yaml_utils.hpp>
-#include <as2_msgs/action/take_off.hpp>
 #include <filesystem>
 #include <pluginlib/class_loader.hpp>
 
-#include "as2_core/names/actions.hpp"
-#include "as2_core/names/topics.hpp"
 #include "controller_plugin_base/controller_base.hpp"
 
-// #define PLUGIN_NAME "controller_plugin_differential_flatness::PDController"
 #define PLUGIN_NAME "controller_plugin_differential_flatness::PDController"
 
 class ControllerManager : public as2::Node {
@@ -54,4 +50,4 @@ class ControllerManager : public as2::Node {
   std::shared_ptr<controller_plugin_base::ControllerBase> controller_;
 };
 
-#endif  // TAKE_OFF_BEHAVIOUR_HPP
+#endif  // CONTROLLER_MANAGER_HPP
