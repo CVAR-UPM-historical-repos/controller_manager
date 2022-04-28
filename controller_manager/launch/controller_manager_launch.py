@@ -19,7 +19,7 @@ def generate_launch_description():
         Node(
             package='controller_manager',
             executable='controller_manager_node',
-            name='controller_manager_node',
+            # name='controller_manager_node',
             namespace=LaunchConfiguration('drone_id'),
             parameters=[config],
             output='screen',
