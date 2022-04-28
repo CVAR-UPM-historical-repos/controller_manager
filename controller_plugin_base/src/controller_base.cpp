@@ -19,9 +19,14 @@ void ControllerBase::initialize(as2::Node* node_ptr) {
   platform_info_sub_ = node_ptr_->create_subscription<as2_msgs::msg::PlatformInfo>(
       as2_names::topics::platform::info, as2_names::topics::platform::qos,
       std::bind(&ControllerBase::platform_info_callback, this, std::placeholders::_1));
+
   set_control_mode_client_ =
       std::make_shared<as2::SynchronousServiceClient<as2_msgs::srv::SetControlMode>>(
           as2_names::services::platform::set_platform_control_mode);
+
+  list_control_modes_client_ =
+      std::make_shared<as2::SynchronousServiceClient<as2_msgs::srv::ListControlModes>>(
+          as2_names::services::platform::list_control_modes);
 
   pose_pub_ = node_ptr_->create_publisher<geometry_msgs::msg::PoseStamped>(
       as2_names::topics::actuator_command::pose, as2_names::topics::actuator_command::qos);
