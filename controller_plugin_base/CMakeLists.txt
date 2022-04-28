@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.5)
 set(PROJECT_NAME controller_plugin_base)
 project(${PROJECT_NAME})
 
+# add fPIC 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # Default to C++17
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
@@ -38,9 +41,35 @@ include_directories(
 add_executable(${PROJECT_NAME}_test test/plugin_base_build_test.cpp)
 ament_target_dependencies(${PROJECT_NAME}_test ${PROJECT_DEPENDENCIES})
 
+add_library(${PROJECT_NAME} src/controller_base.cpp)
+target_include_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
+ament_target_dependencies(
+  ${PROJECT_NAME}
+  ${PROJECT_DEPENDENCIES}
+)
+
+
 install(
   DIRECTORY include/
   DESTINATION include
+)
+
+install(
+  TARGETS ${PROJECT_NAME}
+  EXPORT export_${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
+ament_export_libraries(
+  ${PROJECT_NAME}
+)
+ament_export_targets(
+  export_${PROJECT_NAME}
 )
 
 ament_export_include_directories(
