@@ -1,4 +1,5 @@
 #include "controller_plugin_base/controller_base.hpp"
+#include <rclcpp/logging.hpp>
 
 namespace controller_plugin_base {
 void ControllerBase::initialize(as2::Node* node_ptr) {
@@ -97,9 +98,11 @@ bool ControllerBase::setPlatformControlMode(const as2_msgs::msg::ControlMode& mo
 };
 
 bool ControllerBase::negotiateOutputMode() {
+  RCLCPP_INFO(node_ptr_->get_logger(), "Negotiating output mode");
   // check if the list of available modes is empty
 
   if (platform_available_modes_in_.empty()) {
+    RCLCPP_INFO(node_ptr_->get_logger(), "LISTING AVAILABLE MODES");
     // if the list is empty, send a request to the platform to get the list of available modes
     as2_msgs::srv::ListControlModes::Request list_control_modes_req;
     as2_msgs::srv::ListControlModes::Response response =
@@ -108,6 +111,12 @@ bool ControllerBase::negotiateOutputMode() {
       RCLCPP_ERROR(node_ptr_->get_logger(), "No available control modes");
       return false;
     }
+
+    // log the available modes
+    for (auto& mode : response.control_modes) {
+      RCLCPP_INFO(node_ptr_->get_logger(), "Available mode: %d", mode);
+    }
+    
     platform_available_modes_in_ = response.control_modes;
   }
 
@@ -165,6 +174,10 @@ bool ControllerBase::negotiateOutputMode() {
 void ControllerBase::setControlModeSrvCall(
     const as2_msgs::srv::SetControlMode::Request::SharedPtr request,
     as2_msgs::srv::SetControlMode::Response::SharedPtr response) {
+
+
+  RCLCPP_INFO(node_ptr_->get_logger(), "Set control mode request received");
+
   control_mode_established_ = false;
 
   // check if the output_mode is already settled
