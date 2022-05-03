@@ -9,7 +9,7 @@
 
 #include "controller_plugin_base/controller_base.hpp"
 
-#define PLUGIN_NAME "controller_plugin_differential_flatness::PDController"
+#define PLUGIN_NAME "controller_plugin_differential_flatness::DFPlugin"
 
 class ControllerManager : public as2::Node {
   public:
