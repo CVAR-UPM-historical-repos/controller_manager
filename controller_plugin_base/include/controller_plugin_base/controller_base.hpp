@@ -86,6 +86,10 @@ class ControllerBase {
   virtual bool setMode(const as2_msgs::msg::ControlMode& mode_in,
                        const as2_msgs::msg::ControlMode& mode_out) = 0;
 
+  as2_msgs::msg::ControlMode getMode() {
+    return this->input_mode_;
+  };
+
   void setInputControlModesAvailables(const std::vector<uint8_t>& available_modes) {
     controller_available_modes_in_ = available_modes;
     // sort modes in ascending order

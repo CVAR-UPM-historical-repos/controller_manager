@@ -92,6 +92,7 @@ void ControllerBase::control_timer_callback() {
   sendCommand();
 };
 
+// TODO: move to ControllerManager?
 bool ControllerBase::setPlatformControlMode(const as2_msgs::msg::ControlMode& mode) {
   as2_msgs::srv::SetControlMode::Request set_control_mode_req;
   set_control_mode_req.control_mode = mode;
@@ -102,6 +103,7 @@ bool ControllerBase::setPlatformControlMode(const as2_msgs::msg::ControlMode& mo
   return request.success;
 };
 
+// TODO: move to ControllerManager?
 bool ControllerBase::negotiateOutputMode() {
   RCLCPP_INFO(node_ptr_->get_logger(), "Negotiating output mode");
   // check if the list of available modes is empty
@@ -176,6 +178,7 @@ bool ControllerBase::negotiateOutputMode() {
   return true;
 }
 
+// TODO: move to ControllerManager?
 void ControllerBase::setControlModeSrvCall(
     const as2_msgs::srv::SetControlMode::Request::SharedPtr request,
     as2_msgs::srv::SetControlMode::Response::SharedPtr response) {
