@@ -1,6 +1,8 @@
-# /**/takeoff_behaviour: 
+# /**/controller_manager: 
 /**:
   ros__parameters:
-    default_takeoff_altitude: 1.0  # [m]
-    default_takeoff_speed: 0.4     # [m/s]
-    takeoff_height_threshold: 0.1  # [m]
+    publish_cmd_freq: 100  # Hz
+    publish_info_freq: 10    # Hz
+    plugin_name: "controller_plugin_differential_flatness::DFPlugin"
+    plugin_config_file: "path/to/config.yaml"
+    plugin_available_modes_config_file: "path"

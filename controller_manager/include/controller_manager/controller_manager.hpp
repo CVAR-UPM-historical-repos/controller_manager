@@ -45,6 +45,7 @@ public:
   };
 
 private:
+  // TODO: move to plugin base?
   void config_available_control_modes(const std::filesystem::path project_path)
   {
     auto available_input_modes = as2::parse_uint_from_string(
