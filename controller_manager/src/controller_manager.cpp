@@ -11,7 +11,7 @@ int main(int argc, char* argv[]) {
   std::cout << "Starting Controller Manager" << std::endl;
 
   auto node = std::make_shared<ControllerManager>();
-  node->preset_loop_frequency(30);
+  node->preset_loop_frequency(100);
   as2::spinLoop(node);
 
   rclcpp::shutdown();
