@@ -117,10 +117,10 @@ void ControllerBase::control_timer_callback() {
     RCLCPP_INFO(node_ptr_->get_logger(), "Waiting for odometry ");
     return;
   }
-  if (!motion_reference_adquired_) {
-    RCLCPP_INFO(node_ptr_->get_logger(), "Waiting for motion reference");
-    return;
-  }
+  // if (!motion_reference_adquired_) {
+  //   RCLCPP_INFO(node_ptr_->get_logger(), "Waiting for motion reference");
+  //   return;
+  // }
 
   sendCommand();
 };
@@ -305,6 +305,10 @@ void ControllerBase::setControlModeSrvCall(
 
 void ControllerBase::sendCommand() {
   if (bypass_controller_) {
+    if (!motion_reference_adquired_) {
+      RCLCPP_INFO(node_ptr_->get_logger(), "Waiting for motion reference");
+      return;
+    }
     pose_pub_->publish(ref_pose_);
     twist_pub_->publish(ref_twist_);
     return;
