@@ -154,6 +154,11 @@ bool ControllerBase::listPlatformAvailableControlModes() {
 
 bool ControllerBase::tryToBypassController(const uint8_t input_mode, uint8_t& output_mode) {
   // check if platform available modes are set
+  if ((input_mode & MATCH_MODE) == UNSET_MODE_MASK ||
+      (input_mode & MATCH_MODE) == HOVER_MODE_MASK) {
+    return false;
+  }
+
   uint8_t candidate_mode =
       findBestMatchWithMask(input_mode, platform_available_modes_in_, MATCH_ALL);
   if (candidate_mode) {
@@ -267,13 +272,24 @@ void ControllerBase::setControlModeSrvCall(
   output_mode_ = mode_to_request;
 
   if (bypass_controller_) {
-    RCLCPP_INFO(node_ptr_->get_logger(), "Bypassing controller");
+    RCLCPP_INFO(node_ptr_->get_logger(), "Bypassing controller with  input_mode:");
+    as2::printControlMode(input_mode_);
+    RCLCPP_INFO(node_ptr_->get_logger(), "and output_mode:");
+    as2::printControlMode(output_mode_);
     auto unset_mode = as2::convertUint8tToAS2ControlMode(UNSET_MODE_MASK);
     response->success = setMode(unset_mode, unset_mode);
     return;
   }
 
+  RCLCPP_INFO(node_ptr_->get_logger(), "Setting controller with input_mode:");
+  as2::printControlMode(input_mode_);
+  RCLCPP_INFO(node_ptr_->get_logger(), "and output_mode:");
+  as2::printControlMode(output_mode_);
+
   response->success = setMode(input_mode_, output_mode_);
+  if (!response->success) {
+    RCLCPP_ERROR(node_ptr_->get_logger(), "Failed to set control mode in the controller");
+  }
   odometry_adquired_ = false;
   motion_reference_adquired_ = false;
   return;
