@@ -225,6 +225,8 @@ bool ControllerBase::findSuitableOutputControlModeForPlatformInputMode(uint8_t& 
 void ControllerBase::setControlModeSrvCall(
     const as2_msgs::srv::SetControlMode::Request::SharedPtr request,
     as2_msgs::srv::SetControlMode::Response::SharedPtr response) {
+
+  control_mode_established_ = false;
   // input_control_mode_desired
   uint8_t input_control_mode_desired = as2::convertAS2ControlModeToUint8t(request->control_mode);
 
@@ -287,6 +289,8 @@ void ControllerBase::setControlModeSrvCall(
   as2::printControlMode(output_mode_);
 
   response->success = setMode(input_mode_, output_mode_);
+  control_mode_established_= response -> success;
+
   if (!response->success) {
     RCLCPP_ERROR(node_ptr_->get_logger(), "Failed to set control mode in the controller");
   }
