@@ -40,7 +40,7 @@ public:
     using namespace std::chrono_literals;
     // FIXME: Hardcoded timer period
     mode_timer_ = this->create_wall_timer(
-      100ms, std::bind(&ControllerManager::mode_timer_callback, this)
+      10ms, std::bind(&ControllerManager::mode_timer_callback, this)
     );
   };
 
