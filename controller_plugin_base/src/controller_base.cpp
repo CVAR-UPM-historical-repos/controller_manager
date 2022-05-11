@@ -1,7 +1,29 @@
 #include "controller_plugin_base/controller_base.hpp"
+
+#include <as2_core/control_mode_utils/control_mode_utils.hpp>
 #include <rclcpp/logging.hpp>
 
 namespace controller_plugin_base {
+
+static inline bool checkMatchWithMask(const uint8_t mode1, const uint8_t mode2,
+                                      const uint8_t mask) {
+  return (mode1 & mask) == (mode2 & mask);
+}
+
+static uint8_t findBestMatchWithMask(const uint8_t mode, const std::vector<uint8_t>& mode_list,
+                                     const uint8_t mask) {
+  uint8_t best_match = 0;
+  for (const auto& candidate : mode_list) {
+    if (checkMatchWithMask(mode, candidate, mask)) {
+      best_match = candidate;
+      if (candidate == mode) {
+        return candidate;
+      }
+    }
+  }
+  return best_match;
+}
+
 void ControllerBase::initialize(as2::Node* node_ptr) {
   node_ptr_ = node_ptr;
   odom_sub_ = node_ptr_->create_subscription<nav_msgs::msg::Odometry>(
@@ -55,20 +77,24 @@ void ControllerBase::initialize(as2::Node* node_ptr) {
 
 void ControllerBase::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
   odometry_adquired_ = true;
-  updateState(*msg);
+  odom_ = *msg;
+  if (!bypass_controller_) updateState(odom_);
 };
 void ControllerBase::ref_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
   motion_reference_adquired_ = true;
-  updateReference(*msg);
+  ref_pose_ = *msg;
+  if (!bypass_controller_) updateState(odom_);
 };
 void ControllerBase::ref_twist_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
   motion_reference_adquired_ = true;
-  updateReference(*msg);
+  ref_twist_ = *msg;
+  if (!bypass_controller_) updateState(odom_);
 };
 void ControllerBase::ref_traj_callback(
     const trajectory_msgs::msg::JointTrajectoryPoint::SharedPtr msg) {
   motion_reference_adquired_ = true;
-  updateReference(*msg);
+  ref_traj_ = *msg;
+  if (!bypass_controller_) updateState(odom_);
 };
 
 void ControllerBase::platform_info_callback(const as2_msgs::msg::PlatformInfo::SharedPtr msg) {
@@ -84,8 +110,12 @@ void ControllerBase::control_timer_callback() {
     return;
   }
 
-  if (!odometry_adquired_ || !motion_reference_adquired_) {
-    RCLCPP_INFO(node_ptr_->get_logger(), "Waiting for odometry and motion reference");
+  if (!odometry_adquired_) {
+    RCLCPP_INFO(node_ptr_->get_logger(), "Waiting for odometry ");
+    return;
+  }
+  if (!motion_reference_adquired_) {
+    RCLCPP_INFO(node_ptr_->get_logger(), "Waiting for motion reference");
     return;
   }
 
@@ -97,17 +127,10 @@ bool ControllerBase::setPlatformControlMode(const as2_msgs::msg::ControlMode& mo
   as2_msgs::srv::SetControlMode::Request set_control_mode_req;
   set_control_mode_req.control_mode = mode;
   auto request = set_control_mode_client_->sendRequest(set_control_mode_req);
-  if (request.success) {
-    output_mode_ = mode;
-  }
   return request.success;
 };
 
-// TODO: move to ControllerManager?
-bool ControllerBase::negotiateOutputMode() {
-  RCLCPP_INFO(node_ptr_->get_logger(), "Negotiating output mode");
-  // check if the list of available modes is empty
-
+bool ControllerBase::listPlatformAvailableControlModes() {
   if (platform_available_modes_in_.empty()) {
     RCLCPP_INFO(node_ptr_->get_logger(), "LISTING AVAILABLE MODES");
     // if the list is empty, send a request to the platform to get the list of available modes
@@ -123,123 +146,145 @@ bool ControllerBase::negotiateOutputMode() {
     for (auto& mode : response.control_modes) {
       RCLCPP_INFO(node_ptr_->get_logger(), "Available mode: %d", mode);
     }
-    
+
     platform_available_modes_in_ = response.control_modes;
   }
-
-  // compare platform_available_modes_in_ with controller_available_modes_out_
-  // and chose the one in common with LOWER VALUE both are std::vector<uint8_t>
-  // if no common mode is found, return false
-  // if a common mode is found, set the output_mode_ and return true
-  // if the common mode is the same as the input_mode_, return true
-
-  uint8_t common_mode = 0;
-
-  // check if the prefered mode is available
-  if (prefered_output_mode_) {
-    // search if the prefered mode is available
-    for (auto mode : platform_available_modes_in_) {
-      if (mode == prefered_output_mode_) {
-        common_mode = mode;
-        break;
-      }
-    }
-  }
-
-  // if the prefered mode is not available, search for the first common mode
-  if (!common_mode) {
-    for (auto& mode_out : controller_available_modes_out_) {
-      // skip unset modes and hover
-      if ((mode_out & 0b1111000) == 0b00000000 || (mode_out & 0b1111000) == 0b00001000) {
-        continue;
-      }
-      for (auto& mode_in : platform_available_modes_in_) {
-        if (mode_in == mode_out) {
-          common_mode = mode_in;
-          break;
-        }
-      }
-    }
-  }
-
-  // check if the common mode exist
-  if (common_mode == 0) {
-    RCLCPP_ERROR(node_ptr_->get_logger(), "No common control mode");
-    return false;
-  }
-
-  // request the common mode to the platform
-  auto mode_to_request = as2::convertUint8tToAS2ControlMode(common_mode);
-  if (!setPlatformControlMode(mode_to_request)) {
-    return false;
-  }
-
-  output_mode_ = mode_to_request;
   return true;
 }
 
-// TODO: move to ControllerManager?
-void ControllerBase::setControlModeSrvCall(
-    const as2_msgs::srv::SetControlMode::Request::SharedPtr request,
-    as2_msgs::srv::SetControlMode::Response::SharedPtr response) {
-
-
-  RCLCPP_INFO(node_ptr_->get_logger(), "Set control mode request received");
-
-  control_mode_established_ = false;
-
-  // check if the output_mode is already settled
-  if (output_mode_.control_mode == as2_msgs::msg::ControlMode::UNSET) {
-    if (!negotiateOutputMode()) {
-      RCLCPP_ERROR(node_ptr_->get_logger(), "Platform control_mode negotiation failed");
-      response->success = false;
-      return;
-    }
+bool ControllerBase::tryToBypassController(const uint8_t input_mode, uint8_t& output_mode) {
+  // check if platform available modes are set
+  uint8_t candidate_mode =
+      findBestMatchWithMask(input_mode, platform_available_modes_in_, MATCH_ALL);
+  if (candidate_mode) {
+    output_mode = candidate_mode;
+    return true;
   }
+  return false;
+}
 
-  uint8_t output_conversion = as2::convertAS2ControlModeToUint8t(output_mode_);
-  uint8_t input_conversion = as2::convertAS2ControlModeToUint8t(request->control_mode);
-
+bool ControllerBase::checkSuitabilityInputMode(const uint8_t input_mode,
+                                               const uint8_t output_mode) {
   // check if the input mode is compatible with the output mode
-  if ((input_conversion & 0b1111000) < (output_conversion & 0b1111000)) {
+  if ((input_mode & MATCH_MODE) < (output_mode & 0b1111000)) {
     RCLCPP_ERROR(node_ptr_->get_logger(),
                  "Input control mode has lower level than output control mode");
-    response->success = false;
-    return;
+    return false;
   }
 
   // check if input_conversion is in the list of available modes
   bool mode_found = false;
   for (auto& mode : controller_available_modes_in_) {
-    if (mode == input_conversion) {
+    if (mode == input_mode) {
       mode_found = true;
       break;
     }
   }
 
-  if (!mode_found) {
-    RCLCPP_ERROR(node_ptr_->get_logger(), "Input control mode is not available");
+  return mode_found;
+}
+
+bool ControllerBase::findSuitableOutputControlModeForPlatformInputMode(uint8_t& output_mode,
+                                                                       const uint8_t input_mode) {
+  //  check if the prefered mode is available
+  if (prefered_output_mode_) {
+    auto match =
+        findBestMatchWithMask(prefered_output_mode_, platform_available_modes_in_, MATCH_ALL);
+    if (match) {
+      output_mode = match;
+      return true;
+    }
+  }
+
+  // if the prefered mode is not available, search for the first common mode
+
+  uint8_t common_mode = 0;
+  bool same_yaw = false;
+
+  for (auto& mode_out : controller_available_modes_out_) {
+    // skip unset modes and hover
+    if ((mode_out & MATCH_MODE) == UNSET_MODE_MASK || (mode_out & MATCH_MODE) == HOVER_MODE_MASK) {
+      continue;
+    }
+    common_mode = findBestMatchWithMask(mode_out, platform_available_modes_in_, MATCH_ALL);
+  }
+
+  // check if the common mode exist
+  if (common_mode == 0) {
+    return false;
+  }
+  output_mode = common_mode;
+  return true;
+}
+
+void ControllerBase::setControlModeSrvCall(
+    const as2_msgs::srv::SetControlMode::Request::SharedPtr request,
+    as2_msgs::srv::SetControlMode::Response::SharedPtr response) {
+  // input_control_mode_desired
+  uint8_t input_control_mode_desired = as2::convertAS2ControlModeToUint8t(request->control_mode);
+
+  // check if platform_available_modes is set
+  if (!listPlatformAvailableControlModes()) {
+    response->success = false;
+    return;
+  }
+
+  // 1st: check if a bypass is possible for the input_control_mode_desired ( DISCARDING YAW
+  // COMPONENT)
+
+  uint8_t output_control_mode_candidate = 0;
+
+  bypass_controller_ =
+      tryToBypassController(input_control_mode_desired, output_control_mode_candidate);
+
+  if (!bypass_controller_) {
+    bool success = findSuitableOutputControlModeForPlatformInputMode(output_control_mode_candidate,
+                                                                     input_control_mode_desired);
+    if (!success) {
+      RCLCPP_WARN(node_ptr_->get_logger(), "No suitable output control mode found");
+      response->success = false;
+      return;
+    }
+
+    success = checkSuitabilityInputMode(input_control_mode_desired, output_control_mode_candidate);
+    if (!success) {
+      RCLCPP_ERROR(node_ptr_->get_logger(),
+                   "Input control mode is not suitable for this controller");
+      response->success = false;
+      return;
+    }
+  }
+
+  // request the common mode to the platform
+  auto mode_to_request = as2::convertUint8tToAS2ControlMode(output_control_mode_candidate);
+  if (!setPlatformControlMode(mode_to_request)) {
+    RCLCPP_ERROR(node_ptr_->get_logger(), "Failed to set platform control mode");
     response->success = false;
     return;
   }
 
   input_mode_ = request->control_mode;
+  output_mode_ = mode_to_request;
 
-  // finally set the output mode
-  response->success = setMode(input_mode_, output_mode_);
-  if (!response->success) {
-    RCLCPP_ERROR(node_ptr_->get_logger(), "Output control mode negotiation failed");
+  if (bypass_controller_) {
+    RCLCPP_INFO(node_ptr_->get_logger(), "Bypassing controller");
+    auto unset_mode = as2::convertUint8tToAS2ControlMode(UNSET_MODE_MASK);
+    response->success = setMode(unset_mode, unset_mode);
+    return;
   }
-  control_mode_established_ = response->success;
 
-  RCLCPP_INFO(node_ptr_->get_logger(), "Control mode established:");
-  RCLCPP_INFO(node_ptr_->get_logger(), "  Input:");
-  as2::printControlMode(input_mode_);
-  RCLCPP_INFO(node_ptr_->get_logger(), "  Output:");
-  as2::printControlMode(output_mode_);
+  response->success = setMode(input_mode_, output_mode_);
+  odometry_adquired_ = false;
+  motion_reference_adquired_ = false;
+  return;
 }
 
 void ControllerBase::sendCommand() {
+  if (bypass_controller_) {
+    pose_pub_->publish(ref_pose_);
+    twist_pub_->publish(ref_twist_);
+    return;
+  }
   geometry_msgs::msg::PoseStamped pose;
   geometry_msgs::msg::TwistStamped twist;
   as2_msgs::msg::Thrust thrust;
