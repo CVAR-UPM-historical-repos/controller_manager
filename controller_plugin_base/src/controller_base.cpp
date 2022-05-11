@@ -73,33 +73,36 @@ void ControllerBase::initialize(as2::Node* node_ptr) {
   output_mode_.control_mode = as2_msgs::msg::ControlMode::UNSET;
 
   ownInitialize();
-};
+}
 
 void ControllerBase::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
   odometry_adquired_ = true;
   odom_ = *msg;
   if (!bypass_controller_) updateState(odom_);
-};
+}
+
 void ControllerBase::ref_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
   motion_reference_adquired_ = true;
   ref_pose_ = *msg;
-  if (!bypass_controller_) updateState(odom_);
-};
+  if (!bypass_controller_) updateReference(ref_pose_);
+}
+
 void ControllerBase::ref_twist_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
   motion_reference_adquired_ = true;
   ref_twist_ = *msg;
-  if (!bypass_controller_) updateState(odom_);
-};
+  if (!bypass_controller_) updateReference(ref_twist_);
+}
+
 void ControllerBase::ref_traj_callback(
     const trajectory_msgs::msg::JointTrajectoryPoint::SharedPtr msg) {
   motion_reference_adquired_ = true;
   ref_traj_ = *msg;
-  if (!bypass_controller_) updateState(odom_);
-};
+  if (!bypass_controller_) updateReference(ref_traj_);
+}
 
 void ControllerBase::platform_info_callback(const as2_msgs::msg::PlatformInfo::SharedPtr msg) {
   platform_info_ = *msg;
-};
+}
 
 void ControllerBase::control_timer_callback() {
   if (!platform_info_.offboard || !platform_info_.armed) {
@@ -280,6 +283,7 @@ void ControllerBase::setControlModeSrvCall(
     as2::printControlMode(output_mode_);
     auto unset_mode = as2::convertUint8tToAS2ControlMode(UNSET_MODE_MASK);
     response->success = setMode(unset_mode, unset_mode);
+    control_mode_established_= response -> success;
     return;
   }
 
