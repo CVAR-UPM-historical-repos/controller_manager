@@ -128,9 +128,11 @@ void ControllerBase::control_timer_callback() {
 // TODO: move to ControllerManager?
 bool ControllerBase::setPlatformControlMode(const as2_msgs::msg::ControlMode& mode) {
   as2_msgs::srv::SetControlMode::Request set_control_mode_req;
+  as2_msgs::srv::SetControlMode::Response set_control_mode_resp;
   set_control_mode_req.control_mode = mode;
-  auto request = set_control_mode_client_->sendRequest(set_control_mode_req);
-  return request.success;
+  auto out = set_control_mode_client_->sendRequest(set_control_mode_req, set_control_mode_resp);
+  if (out && set_control_mode_resp.success) return true;
+  return false;
 };
 
 bool ControllerBase::listPlatformAvailableControlModes() {
@@ -138,19 +140,25 @@ bool ControllerBase::listPlatformAvailableControlModes() {
     RCLCPP_INFO(node_ptr_->get_logger(), "LISTING AVAILABLE MODES");
     // if the list is empty, send a request to the platform to get the list of available modes
     as2_msgs::srv::ListControlModes::Request list_control_modes_req;
-    as2_msgs::srv::ListControlModes::Response response =
-        list_control_modes_client_->sendRequest(list_control_modes_req);
-    if (response.control_modes.empty()) {
+    as2_msgs::srv::ListControlModes::Response list_control_modes_resp;
+
+    bool out =
+        list_control_modes_client_->sendRequest(list_control_modes_req, list_control_modes_resp);
+    if (!out) {
+      RCLCPP_ERROR(node_ptr_->get_logger(), "Error listing control_modes");
+      return false;
+    }
+    if (list_control_modes_resp.control_modes.empty()) {
       RCLCPP_ERROR(node_ptr_->get_logger(), "No available control modes");
       return false;
     }
 
     // log the available modes
-    for (auto& mode : response.control_modes) {
+    for (auto& mode : list_control_modes_resp.control_modes) {
       RCLCPP_INFO(node_ptr_->get_logger(), "Available mode: %d", mode);
     }
 
-    platform_available_modes_in_ = response.control_modes;
+    platform_available_modes_in_ = list_control_modes_resp.control_modes;
   }
   return true;
 }
@@ -228,7 +236,6 @@ bool ControllerBase::findSuitableOutputControlModeForPlatformInputMode(uint8_t& 
 void ControllerBase::setControlModeSrvCall(
     const as2_msgs::srv::SetControlMode::Request::SharedPtr request,
     as2_msgs::srv::SetControlMode::Response::SharedPtr response) {
-
   control_mode_established_ = false;
   // input_control_mode_desired
   uint8_t input_control_mode_desired = as2::convertAS2ControlModeToUint8t(request->control_mode);
@@ -283,7 +290,7 @@ void ControllerBase::setControlModeSrvCall(
     as2::printControlMode(output_mode_);
     auto unset_mode = as2::convertUint8tToAS2ControlMode(UNSET_MODE_MASK);
     response->success = setMode(unset_mode, unset_mode);
-    control_mode_established_= response -> success;
+    control_mode_established_ = response->success;
     return;
   }
 
@@ -293,7 +300,7 @@ void ControllerBase::setControlModeSrvCall(
   as2::printControlMode(output_mode_);
 
   response->success = setMode(input_mode_, output_mode_);
-  control_mode_established_= response -> success;
+  control_mode_established_ = response->success;
 
   if (!response->success) {
     RCLCPP_ERROR(node_ptr_->get_logger(), "Failed to set control mode in the controller");
