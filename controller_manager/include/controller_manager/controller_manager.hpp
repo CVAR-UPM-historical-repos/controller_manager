@@ -1,3 +1,40 @@
+/*!*******************************************************************************************
+ *  \file       controller_manager.hpp
+ *  \brief      Controller manager class definition
+ *  \authors    Miguel Fernández Cortizas
+ *              Pedro Arias Pérez
+ *              David Pérez Saura
+ *              Rafael Pérez Seguí
+ *
+ *  \copyright  Copyright (c) 2022 Universidad Politécnica de Madrid
+ *              All Rights Reserved
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ ********************************************************************************/
+
+
 #ifndef CONTROLLER_MANAGER_HPP
 #define CONTROLLER_MANAGER_HPP
 
@@ -6,6 +43,7 @@
 #include <as2_core/yaml_utils/yaml_utils.hpp>
 #include <filesystem>
 #include <pluginlib/class_loader.hpp>
+#include <rclcpp/logging.hpp>
 
 #include "controller_plugin_base/controller_base.hpp"
 #include "as2_msgs/msg/controller_info.hpp"
@@ -22,11 +60,11 @@ public:
     try
     {
       controller_ = loader_->createSharedInstance(PLUGIN_NAME);
-      RCLCPP_INFO(this->get_logger(), "PLUGIN LOADED");
+      RCLCPP_INFO(this->get_logger(), "PLUGIN LOADED [%s]", PLUGIN_NAME);
     }
     catch (pluginlib::PluginlibException &ex)
     {
-      printf("The plugin failed to load for some reason. Error: %s\n", ex.what());
+      RCLCPP_ERROR(this->get_logger(), "The plugin failed to load for some reason. Error: %s\n", ex.what());
     }
 
     controller_->initialize(this);
@@ -52,13 +90,14 @@ private:
         as2::find_tag_from_project_exports_path<std::string>(project_path, "input_control_modes"));
     for (auto mode : available_input_modes)
     {
-      std::cout << "mode: " << (int)mode << std::endl;
+      RCLCPP_INFO(this->get_logger(), "Input mode: %s", as2::controlModeToString(mode).c_str());
+       
     }
     auto available_output_modes = as2::parse_uint_from_string(
         as2::find_tag_from_project_exports_path<std::string>(project_path, "output_control_modes"));
     for (auto mode : available_output_modes)
     {
-      std::cout << "mode: " << (int)mode << std::endl;
+      RCLCPP_INFO(this->get_logger(), "Output mode: %s", as2::controlModeToString(mode).c_str());
     }
 
     controller_->setInputControlModesAvailables(available_input_modes);

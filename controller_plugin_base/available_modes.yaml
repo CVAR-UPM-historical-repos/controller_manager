@@ -1,3 +1,5 @@
+# Example of all available_control_modes
+
 #----------------------------------------------------------------
 # A complete control mode is an 8 bits flag 
 # (4bits control mode + 2 yaw mode bits + 2 reference frame bits)

@@ -1,7 +1,48 @@
+/********************************************************************************************
+ *  \file       controller_base.cpp
+ *  \brief      Controller base class implementation
+ *  \authors    Miguel Fernández Cortizas
+ *              Pedro Arias Pérez
+ *              David Pérez Saura
+ *              Rafael Pérez Seguí
+ *
+ *  \copyright  Copyright (c) 2022 Universidad Politécnica de Madrid
+ *              All Rights Reserved
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ ********************************************************************************/
+
 #include "controller_plugin_base/controller_base.hpp"
 
+#include <rcl/time.h>
+
 #include <as2_core/control_mode_utils/control_mode_utils.hpp>
+#include <chrono>
+#include <rclcpp/clock.hpp>
 #include <rclcpp/logging.hpp>
+#include <rclcpp/rate.hpp>
 
 namespace controller_plugin_base {
 
@@ -114,13 +155,11 @@ void ControllerBase::control_timer_callback() {
   }
 
   if (!odometry_adquired_) {
-    RCLCPP_INFO(node_ptr_->get_logger(), "Waiting for odometry ");
+    auto& clock = *node_ptr_->get_clock();
+    RCLCPP_INFO_THROTTLE(node_ptr_->get_logger(), clock, 1000, "Waiting for odometry ");
+
     return;
   }
-  // if (!motion_reference_adquired_) {
-  //   RCLCPP_INFO(node_ptr_->get_logger(), "Waiting for motion reference");
-  //   return;
-  // }
 
   sendCommand();
 };
@@ -137,7 +176,7 @@ bool ControllerBase::setPlatformControlMode(const as2_msgs::msg::ControlMode& mo
 
 bool ControllerBase::listPlatformAvailableControlModes() {
   if (platform_available_modes_in_.empty()) {
-    RCLCPP_INFO(node_ptr_->get_logger(), "LISTING AVAILABLE MODES");
+    RCLCPP_DEBUG(node_ptr_->get_logger(), "LISTING AVAILABLE MODES");
     // if the list is empty, send a request to the platform to get the list of available modes
     as2_msgs::srv::ListControlModes::Request list_control_modes_req;
     as2_msgs::srv::ListControlModes::Response list_control_modes_resp;
@@ -155,7 +194,8 @@ bool ControllerBase::listPlatformAvailableControlModes() {
 
     // log the available modes
     for (auto& mode : list_control_modes_resp.control_modes) {
-      RCLCPP_INFO(node_ptr_->get_logger(), "Available mode: %d", mode);
+      RCLCPP_DEBUG(node_ptr_->get_logger(), "Available mode: %s",
+                   as2::controlModeToString(mode).c_str());
     }
 
     platform_available_modes_in_ = list_control_modes_resp.control_modes;
@@ -284,9 +324,11 @@ void ControllerBase::setControlModeSrvCall(
   output_mode_ = mode_to_request;
 
   if (bypass_controller_) {
-    RCLCPP_INFO(node_ptr_->get_logger(), "Bypassing controller with  input_mode:");
-    as2::printControlMode(input_mode_);
-    RCLCPP_INFO(node_ptr_->get_logger(), "and output_mode:");
+    RCLCPP_INFO(node_ptr_->get_logger(), "Bypassing controller:");
+    RCLCPP_INFO(node_ptr_->get_logger(), "input_mode:[%s]",
+                as2::controlModeToString(input_mode_).c_str());
+    RCLCPP_INFO(node_ptr_->get_logger(), "output_mode:[%s]",
+                as2::controlModeToString(output_mode_).c_str());
     as2::printControlMode(output_mode_);
     auto unset_mode = as2::convertUint8tToAS2ControlMode(UNSET_MODE_MASK);
     response->success = setMode(unset_mode, unset_mode);
@@ -294,10 +336,10 @@ void ControllerBase::setControlModeSrvCall(
     return;
   }
 
-  RCLCPP_INFO(node_ptr_->get_logger(), "Setting controller with input_mode:");
-  as2::printControlMode(input_mode_);
-  RCLCPP_INFO(node_ptr_->get_logger(), "and output_mode:");
-  as2::printControlMode(output_mode_);
+  RCLCPP_INFO(node_ptr_->get_logger(), "input_mode:[%s]",
+              as2::controlModeToString(input_mode_).c_str());
+  RCLCPP_INFO(node_ptr_->get_logger(), "output_mode:[%s]",
+              as2::controlModeToString(output_mode_).c_str());
 
   response->success = setMode(input_mode_, output_mode_);
   control_mode_established_ = response->success;
@@ -313,7 +355,9 @@ void ControllerBase::setControlModeSrvCall(
 void ControllerBase::sendCommand() {
   if (bypass_controller_) {
     if (!motion_reference_adquired_) {
-      RCLCPP_INFO(node_ptr_->get_logger(), "Waiting for motion reference");
+      auto& clock = *node_ptr_->get_clock();
+      RCLCPP_INFO_THROTTLE(node_ptr_->get_logger(), clock, 1000, "Waiting for motion reference");
+
       return;
     }
     pose_pub_->publish(ref_pose_);

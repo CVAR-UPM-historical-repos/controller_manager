@@ -1,15 +1,19 @@
 cmake_minimum_required(VERSION 3.5)
 set(PROJECT_NAME controller_manager)
-project(${PROJECT_NAME})
+project(${PROJECT_NAME} VERSION 0.1.0)
 
 # Default to C++17
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
 endif()
 
-# if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-#   add_compile_options(-Wall -Wextra -Wpedantic)
-# endif()
+# set Release as default
+if (NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
+#set fPIC to ON by default
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # find dependencies
 set(PROJECT_DEPENDENCIES
@@ -21,7 +25,6 @@ set(PROJECT_DEPENDENCIES
   as2_core
   as2_msgs
   yaml-cpp
-  as2_control_command_handlers
   geometry_msgs
   nav_msgs
   trajectory_msgs
