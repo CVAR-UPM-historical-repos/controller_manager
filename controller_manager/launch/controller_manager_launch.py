@@ -9,9 +9,9 @@ from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
     config = join(
-        get_package_share_directory('controller_plugin_differential_flatness'),
+        get_package_share_directory('controller_plugin_speed_controller'),
         'config',
-        'pd_controller.yaml'
+        'speed_controller.yaml'
     )
 
     return LaunchDescription([

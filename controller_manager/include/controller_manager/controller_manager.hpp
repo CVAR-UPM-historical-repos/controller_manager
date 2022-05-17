@@ -48,7 +48,7 @@
 #include "controller_plugin_base/controller_base.hpp"
 #include "as2_msgs/msg/controller_info.hpp"
 
-#define PLUGIN_NAME "controller_plugin_differential_flatness::DFPlugin"
+#define PLUGIN_NAME "controller_plugin_speed_controller::SCPlugin"
 
 class ControllerManager : public as2::Node
 {
