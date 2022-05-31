@@ -42,25 +42,37 @@
 #include <as2_core/node.hpp>
 #include <as2_core/yaml_utils/yaml_utils.hpp>
 #include <filesystem>
+#include <chrono>
 #include <pluginlib/class_loader.hpp>
 #include <rclcpp/logging.hpp>
 
 #include "controller_plugin_base/controller_base.hpp"
 #include "as2_msgs/msg/controller_info.hpp"
 
-#define PLUGIN_NAME "controller_plugin_speed_controller::SCPlugin"
-
 class ControllerManager : public as2::Node
 {
 public:
   ControllerManager() : as2::Node("controller_manager")
   {
+    this->declare_parameter<double>("publish_cmd_freq", 100.0);
+    this->declare_parameter<double>("publish_info_freq", 10.0);
+    this->declare_parameter<std::string>("plugin_name", "");
+    this->declare_parameter<std::filesystem::path>("plugin_config_file", "");  // ONLY DECLARED, USED IN LAUNCH
+    this->declare_parameter<std::filesystem::path>("plugin_available_modes_config_file", "");
+
+    this->get_parameter("publish_cmd_freq", cmd_freq_);
+    this->get_parameter("publish_info_freq", info_freq_);
+    this->get_parameter("plugin_name", plugin_name_);
+    plugin_name_ += "::Plugin";
+    // this->get_parameter("plugin_config_file", parameter_string_);      
+    this->get_parameter("plugin_available_modes_config_file", available_modes_config_file_);
+    
     loader_ = std::make_shared<pluginlib::ClassLoader<controller_plugin_base::ControllerBase>>(
         "controller_plugin_base", "controller_plugin_base::ControllerBase");
     try
     {
-      controller_ = loader_->createSharedInstance(PLUGIN_NAME);
-      RCLCPP_INFO(this->get_logger(), "PLUGIN LOADED [%s]", PLUGIN_NAME);
+      controller_ = loader_->createSharedInstance(plugin_name_);
+      RCLCPP_INFO(this->get_logger(), "PLUGIN LOADED [%s]", plugin_name_.c_str());
     }
     catch (pluginlib::PluginlibException &ex)
     {
@@ -68,18 +80,18 @@ public:
     }
 
     controller_->initialize(this);
-    std::filesystem::path manifest_path = loader_->getPluginManifestPath(PLUGIN_NAME);
-    config_available_control_modes(manifest_path.parent_path());
+    if (available_modes_config_file_.empty()) {
+      available_modes_config_file_ = loader_->getPluginManifestPath(plugin_name_);
+    }
+    RCLCPP_DEBUG(this->get_logger(), "MODES FILE LOADED: %s", available_modes_config_file_.parent_path().c_str());
+
+    config_available_control_modes(available_modes_config_file_.parent_path());
 
     mode_pub_ = this->create_publisher<as2_msgs::msg::ControllerInfo>(
         as2_names::topics::controller::info,
         as2_names::topics::controller::qos_info);
 
-    using namespace std::chrono_literals;
-    // FIXME: Hardcoded timer period
-    mode_timer_ = this->create_wall_timer(
-      10ms, std::bind(&ControllerManager::mode_timer_callback, this)
-    );
+    mode_timer_ = this->create_wall_timer(std::chrono::duration<double>(info_freq_), std::bind(&ControllerManager::mode_timer_callback, this));
   };
 
 private:
@@ -112,7 +124,14 @@ private:
     mode_pub_->publish(msg);
   };
 
+public:
+  double cmd_freq_;
+
 private:
+  double info_freq_;
+  std::filesystem::path plugin_name_;
+  std::filesystem::path available_modes_config_file_;
+
   std::shared_ptr<pluginlib::ClassLoader<controller_plugin_base::ControllerBase>> loader_;
   std::shared_ptr<controller_plugin_base::ControllerBase> controller_;
   rclcpp::Publisher<as2_msgs::msg::ControllerInfo>::SharedPtr mode_pub_;
