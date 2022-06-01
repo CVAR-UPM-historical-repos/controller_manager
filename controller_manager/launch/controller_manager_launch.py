@@ -1,21 +1,15 @@
-from os.path import join
-
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
-from ament_index_python.packages import get_package_share_directory
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.substitutions import LaunchConfiguration, EnvironmentVariable, PathJoinSubstitution
+from launch_ros.substitutions import FindPackageShare
 
 import yaml
 import logging
 
 
-def generate_launch_description():
-    config = join(
-        get_package_share_directory('controller_manager'),
-        'config',
-        'controller_manager.yaml'
-    )
+def get_controller_node(context, *args, **kwargs):
+    config = LaunchConfiguration('config').perform(context)
 
     with open(config, "r") as f:
         config_params = yaml.safe_load(f)
@@ -35,20 +29,33 @@ def generate_launch_description():
         plugin_config = ""
 
     if not plugin_config:
-        plugin_config = join(
-            get_package_share_directory(plugin_name),
-            'config',
-            'default_controller.yaml'
-        )
+        plugin_config = PathJoinSubstitution([
+            FindPackageShare(plugin_name),
+            'config', 'default_controller.yaml'
+        ])
 
-    return LaunchDescription([
-        DeclareLaunchArgument('drone_id', default_value='drone0'),
-        Node(
-            package='controller_manager',
-            executable='controller_manager_node',
-            namespace=LaunchConfiguration('drone_id'),
-            parameters=[config, plugin_config],
-            output='screen',
-            emulate_tty=True
-        )
+    node = Node(
+        package='controller_manager',
+        executable='controller_manager_node',
+        namespace=LaunchConfiguration('drone_id'),
+        parameters=[LaunchConfiguration('config'), plugin_config],
+        output='screen',
+        emulate_tty=True
+    )
+
+    return [node]
+
+
+def generate_launch_description():
+    config = PathJoinSubstitution([
+        FindPackageShare('controller_manager'),
+        'config', 'controller_manager.yaml'
     ])
+
+    ld = LaunchDescription([
+        DeclareLaunchArgument('drone_id', default_value=EnvironmentVariable('AEROSTACK2_SIMULATION_DRONE_ID')),
+        DeclareLaunchArgument('config', default_value=config),
+        OpaqueFunction(function=get_controller_node)
+    ])
+
+    return ld

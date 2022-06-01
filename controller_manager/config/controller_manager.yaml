@@ -1,8 +1,7 @@
-# /**/controller_manager: 
 /**:
   ros__parameters:
-    publish_cmd_freq: 100.0  # Hz
-    publish_info_freq: 10.0  # Hz
     plugin_name: "controller_plugin_speed_controller"
     plugin_config_file: ""
+    publish_cmd_freq: 100.0  # Hz
+    publish_info_freq: 10.0  # Hz
     plugin_available_modes_config_file: ""
