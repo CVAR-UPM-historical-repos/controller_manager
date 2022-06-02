@@ -58,7 +58,8 @@ public:
     this->declare_parameter<double>("publish_info_freq", 10.0);
     try
     {
-      this->declare_parameter<std::string>("plugin_name");
+      // this->declare_parameter<std::string>("plugin_name");
+      this->declare_parameter("plugin_name"); // TODO: Fix for ROS2 Galactic
     }
     catch(const rclcpp::ParameterTypeException& e)
     {
