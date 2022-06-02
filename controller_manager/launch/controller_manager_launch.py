@@ -6,7 +6,8 @@ from launch_ros.substitutions import FindPackageShare
 
 import yaml
 import logging
-
+FORMAT = '[%(levelname)s] [launch]: %(message)s'
+logging.basicConfig(format=FORMAT)
 
 def get_controller_node(context, *args, **kwargs):
     config = LaunchConfiguration('config').perform(context)
@@ -20,7 +21,7 @@ def get_controller_node(context, *args, **kwargs):
         plugin_name = ""
 
     if not plugin_name:
-        logging.error("Plugin not set.")
+        logging.critical("Plugin not set.")
         exit(-1)
 
     try:

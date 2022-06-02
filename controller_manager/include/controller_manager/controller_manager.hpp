@@ -56,7 +56,15 @@ public:
   {
     this->declare_parameter<double>("publish_cmd_freq", 100.0);
     this->declare_parameter<double>("publish_info_freq", 10.0);
-    this->declare_parameter<std::string>("plugin_name", "");
+    try
+    {
+      this->declare_parameter<std::string>("plugin_name");
+    }
+    catch(const rclcpp::ParameterTypeException& e)
+    {
+      RCLCPP_FATAL(this->get_logger(), "Launch argument <plugin_name> not defined or malformed: %s", e.what());
+      this->~ControllerManager();
+    }
     this->declare_parameter<std::filesystem::path>("plugin_config_file", "");  // ONLY DECLARED, USED IN LAUNCH
     this->declare_parameter<std::filesystem::path>("plugin_available_modes_config_file", "");
 
@@ -94,6 +102,7 @@ public:
     mode_timer_ = this->create_wall_timer(std::chrono::duration<double>(info_freq_), std::bind(&ControllerManager::mode_timer_callback, this));
   };
 
+  ~ControllerManager() {};
 private:
   // TODO: move to plugin base?
   void config_available_control_modes(const std::filesystem::path project_path)
