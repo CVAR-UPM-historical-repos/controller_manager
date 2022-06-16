@@ -221,20 +221,26 @@ bool ControllerBase::tryToBypassController(const uint8_t input_mode, uint8_t& ou
 
 bool ControllerBase::checkSuitabilityInputMode(const uint8_t input_mode,
                                                const uint8_t output_mode) {
-  // check if the input mode is compatible with the output mode
-  if ((input_mode & MATCH_MODE) < (output_mode & 0b1111000)) {
-    RCLCPP_ERROR(node_ptr_->get_logger(),
-                 "Input control mode has lower level than output control mode");
-    return false;
-  }
+  
+
 
   // check if input_conversion is in the list of available modes
   bool mode_found = false;
   for (auto& mode : controller_available_modes_in_) {
-    if (mode == input_mode) {
+    if ((input_mode & MATCH_MODE) == HOVER_MODE_MASK && (input_mode & MATCH_MODE) == mode) {
+      mode_found = true;
+      return true;
+    } else if (mode == input_mode) {
       mode_found = true;
       break;
     }
+  }
+  
+  // check if the input mode is compatible with the output mode 
+  if ((input_mode & MATCH_MODE) < (output_mode & 0b1111000)) {
+    RCLCPP_ERROR(node_ptr_->get_logger(),
+                 "Input control mode has lower level than output control mode");
+    return false;
   }
 
   return mode_found;
@@ -278,7 +284,12 @@ void ControllerBase::setControlModeSrvCall(
     as2_msgs::srv::SetControlMode::Response::SharedPtr response) {
   control_mode_established_ = false;
   // input_control_mode_desired
-  uint8_t input_control_mode_desired = as2::convertAS2ControlModeToUint8t(request->control_mode);
+  uint8_t input_control_mode_desired = 0;
+  if (request->control_mode.control_mode == as2_msgs::msg::ControlMode::HOVER) {
+    input_control_mode_desired = HOVER_MODE_MASK;
+  } else {
+    input_control_mode_desired = as2::convertAS2ControlModeToUint8t(request->control_mode);
+  }
 
   // check if platform_available_modes is set
   if (!listPlatformAvailableControlModes()) {
