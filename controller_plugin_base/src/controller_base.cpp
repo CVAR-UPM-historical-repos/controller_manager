@@ -129,7 +129,6 @@ namespace controller_plugin_base
   void ControllerBase::state_callback(const geometry_msgs::msg::PoseStamped::ConstSharedPtr pose_msg,
                                       const geometry_msgs::msg::TwistStamped::ConstSharedPtr twist_msg)
   {
-    RCLCPP_INFO(node_ptr_->get_logger(), "Received state");
     state_adquired_ = true;
     pose_ = *pose_msg;
     twist_ = *twist_msg;
