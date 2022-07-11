@@ -64,6 +64,9 @@
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "trajectory_msgs/msg/joint_trajectory_point.hpp"
+#include <message_filters/subscriber.h>
+#include <message_filters/time_synchronizer.h>
+#include <message_filters/sync_policies/approximate_time.h>
 
 #define MATCH_ALL 0b11111111
 #define MATCH_MODE_AND_FRAME 0b11110011
@@ -79,8 +82,12 @@ class ControllerBase {
   std::vector<uint8_t> controller_available_modes_in_;
   std::vector<uint8_t> controller_available_modes_out_;
   std::vector<uint8_t> platform_available_modes_in_;
+  
+  std::shared_ptr<message_filters::Subscriber<geometry_msgs::msg::PoseStamped>> pose_sub_;
+  std::shared_ptr<message_filters::Subscriber<geometry_msgs::msg::TwistStamped>> twist_sub_;
+  typedef message_filters::sync_policies::ApproximateTime<geometry_msgs::msg::PoseStamped, geometry_msgs::msg::TwistStamped> approximate_policy;
+  std::shared_ptr<message_filters::Synchronizer<approximate_policy>> synchronizer_;
 
-  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr ref_pose_sub_;
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr ref_twist_sub_;
   rclcpp::Subscription<as2_msgs::msg::PlatformInfo>::SharedPtr platform_info_sub_;
@@ -101,7 +108,7 @@ class ControllerBase {
 
   bool control_mode_established_ = false;
   bool motion_reference_adquired_ = false;
-  bool odometry_adquired_ = false;
+  bool state_adquired_ = false;
 
   as2_msgs::msg::ControlMode input_mode_;
   as2_msgs::msg::ControlMode output_mode_;
@@ -116,7 +123,8 @@ class ControllerBase {
   void initialize(as2::Node* node_ptr);
 
   virtual void ownInitialize(){};
-  virtual void updateState(const nav_msgs::msg::Odometry& odom) = 0;
+  virtual void updateState(const geometry_msgs::msg::PoseStamped &pose_msg,
+                           const geometry_msgs::msg::TwistStamped &twist_msg) = 0;
 
   virtual void updateReference(const geometry_msgs::msg::PoseStamped& ref){};
   virtual void updateReference(const geometry_msgs::msg::TwistStamped& ref){};
@@ -150,13 +158,16 @@ class ControllerBase {
   as2::Node* node_ptr_;
 
   private:
-  void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
+  void state_callback(const geometry_msgs::msg::PoseStamped::ConstSharedPtr pose_msg,
+                      const geometry_msgs::msg::TwistStamped::ConstSharedPtr twist_msg);
   void ref_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
   void ref_twist_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
   void ref_traj_callback(const trajectory_msgs::msg::JointTrajectoryPoint::SharedPtr msg);
   void platform_info_callback(const as2_msgs::msg::PlatformInfo::SharedPtr msg);
 
   nav_msgs::msg::Odometry odom_;
+  geometry_msgs::msg::PoseStamped pose_;
+  geometry_msgs::msg::TwistStamped twist_;
   geometry_msgs::msg::PoseStamped ref_pose_;
   geometry_msgs::msg::TwistStamped ref_twist_;
   trajectory_msgs::msg::JointTrajectoryPoint ref_traj_;
