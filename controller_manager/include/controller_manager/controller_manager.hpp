@@ -66,6 +66,7 @@ public:
       RCLCPP_FATAL(this->get_logger(), "Launch argument <plugin_name> not defined or malformed: %s", e.what());
       this->~ControllerManager();
     }
+    this->declare_parameter<bool>("use_bypass", true); // DECLARED, READ ON PLUGIN_BASE
     this->declare_parameter<std::filesystem::path>("plugin_config_file", "");  // ONLY DECLARED, USED IN LAUNCH
     this->declare_parameter<std::filesystem::path>("plugin_available_modes_config_file", "");
 
