@@ -75,6 +75,8 @@ namespace controller_plugin_base
   {
     node_ptr_ = node_ptr;
 
+    node_ptr_->get_parameter("use_bypass", use_bypass_);
+
     pose_sub_ = std::make_shared<message_filters::Subscriber<geometry_msgs::msg::PoseStamped>>(node_ptr_, as2_names::topics::self_localization::pose, as2_names::topics::self_localization::qos.get_rmw_qos_profile());
     twist_sub_ = std::make_shared<message_filters::Subscriber<geometry_msgs::msg::TwistStamped>>(node_ptr_, as2_names::topics::self_localization::twist, as2_names::topics::self_localization::qos.get_rmw_qos_profile());
     synchronizer_ = std::make_shared<message_filters::Synchronizer<approximate_policy>>(approximate_policy(5), *(pose_sub_.get()), *(twist_sub_.get()));
@@ -352,8 +354,15 @@ namespace controller_plugin_base
 
     uint8_t output_control_mode_candidate = 0;
 
-    bypass_controller_ =
+    if (use_bypass_)
+    {
+      bypass_controller_ =
         tryToBypassController(input_control_mode_desired, output_control_mode_candidate);
+    }
+    else
+    {
+      bypass_controller_ = false;
+    }
 
     if (!bypass_controller_)
     {

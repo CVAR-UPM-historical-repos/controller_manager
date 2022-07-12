@@ -118,6 +118,7 @@ class ControllerBase {
   public:
   ControllerBase(){};
 
+  bool use_bypass_ = false;
   bool bypass_controller_ = false;
 
   void initialize(as2::Node* node_ptr);
