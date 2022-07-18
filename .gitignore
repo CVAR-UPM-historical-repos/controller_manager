@@ -37,7 +37,10 @@ log
 install
 devel
 
+
 # IDEs
 .vscode
 .cache
+
+compile_commands.json
 

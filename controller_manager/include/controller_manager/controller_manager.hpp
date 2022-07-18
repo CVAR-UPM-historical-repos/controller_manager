@@ -58,8 +58,7 @@ public:
     this->declare_parameter<double>("publish_info_freq", 10.0);
     try
     {
-      // this->declare_parameter<std::string>("plugin_name");
-      this->declare_parameter("plugin_name"); // TODO: Fix for ROS2 Galactic
+      this->declare_parameter<std::string>("plugin_name");
     }
     catch(const rclcpp::ParameterTypeException& e)
     {
@@ -111,17 +110,22 @@ private:
   {
     auto available_input_modes = as2::parse_uint_from_string(
         as2::find_tag_from_project_exports_path<std::string>(project_path, "input_control_modes"));
+    RCLCPP_INFO(this->get_logger(), "==========================================================");
+    RCLCPP_INFO(this->get_logger(), "AVAILABLE INPUT MODES: ");
     for (auto mode : available_input_modes)
     {
-      RCLCPP_INFO(this->get_logger(), "Input mode: %s", as2::controlModeToString(mode).c_str());
+      RCLCPP_INFO(this->get_logger(), "\t -%s", as2::controlModeToString(mode).c_str());
        
     }
     auto available_output_modes = as2::parse_uint_from_string(
         as2::find_tag_from_project_exports_path<std::string>(project_path, "output_control_modes"));
+    RCLCPP_INFO(this->get_logger(), "AVAILABLE OUTPUT MODES: ");
     for (auto mode : available_output_modes)
     {
-      RCLCPP_INFO(this->get_logger(), "Output mode: %s", as2::controlModeToString(mode).c_str());
+      RCLCPP_INFO(this->get_logger(), "\t -%s", as2::controlModeToString(mode).c_str());
     }
+
+    RCLCPP_INFO(this->get_logger(), "==========================================================");
 
     controller_->setInputControlModesAvailables(available_input_modes);
     controller_->setOutputControlModesAvailables(available_output_modes);
