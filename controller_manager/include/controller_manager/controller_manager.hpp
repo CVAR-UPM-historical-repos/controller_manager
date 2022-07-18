@@ -114,7 +114,7 @@ private:
     RCLCPP_INFO(this->get_logger(), "AVAILABLE INPUT MODES: ");
     for (auto mode : available_input_modes)
     {
-      RCLCPP_INFO(this->get_logger(), "\t -%s", as2::controlModeToString(mode).c_str());
+      RCLCPP_INFO(this->get_logger(), "\t - %s", as2::controlModeToString(mode).c_str());
        
     }
     auto available_output_modes = as2::parse_uint_from_string(
@@ -122,7 +122,7 @@ private:
     RCLCPP_INFO(this->get_logger(), "AVAILABLE OUTPUT MODES: ");
     for (auto mode : available_output_modes)
     {
-      RCLCPP_INFO(this->get_logger(), "\t -%s", as2::controlModeToString(mode).c_str());
+      RCLCPP_INFO(this->get_logger(), "\t - %s", as2::controlModeToString(mode).c_str());
     }
 
     RCLCPP_INFO(this->get_logger(), "==========================================================");
