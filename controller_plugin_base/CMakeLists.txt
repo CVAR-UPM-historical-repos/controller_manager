@@ -23,10 +23,9 @@ set(PROJECT_DEPENDENCIES
   rclcpp
   as2_core
   as2_msgs
-  nav_msgs
   geometry_msgs
   trajectory_msgs
-  yaml-cpp
+  message_filters
 )
 
 foreach(DEPENDENCY ${PROJECT_DEPENDENCIES})

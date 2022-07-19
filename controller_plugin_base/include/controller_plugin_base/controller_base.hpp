@@ -62,7 +62,6 @@
 #include "as2_msgs/srv/set_control_mode.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
-#include "nav_msgs/msg/odometry.hpp"
 #include "trajectory_msgs/msg/joint_trajectory_point.hpp"
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
@@ -166,7 +165,6 @@ class ControllerBase {
   void ref_traj_callback(const trajectory_msgs::msg::JointTrajectoryPoint::SharedPtr msg);
   void platform_info_callback(const as2_msgs::msg::PlatformInfo::SharedPtr msg);
 
-  nav_msgs::msg::Odometry odom_;
   geometry_msgs::msg::PoseStamped pose_;
   geometry_msgs::msg::TwistStamped twist_;
   geometry_msgs::msg::PoseStamped ref_pose_;
