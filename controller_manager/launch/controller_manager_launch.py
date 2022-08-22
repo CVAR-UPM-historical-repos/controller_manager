@@ -39,7 +39,9 @@ def get_controller_node(context, *args, **kwargs):
         package='controller_manager',
         executable='controller_manager_node',
         namespace=LaunchConfiguration('drone_id'),
-        parameters=[LaunchConfiguration('config'), plugin_config],
+        parameters=[LaunchConfiguration('config'), 
+                    plugin_config, 
+                    {"use_sim_time": LaunchConfiguration('use_sim_time')}],
         output='screen',
         emulate_tty=True
     )
@@ -55,6 +57,7 @@ def generate_launch_description():
 
     ld = LaunchDescription([
         DeclareLaunchArgument('drone_id', default_value=EnvironmentVariable('AEROSTACK2_SIMULATION_DRONE_ID')),
+        DeclareLaunchArgument('use_sim_time', default_value='false'),
         DeclareLaunchArgument('config', default_value=config),
         OpaqueFunction(function=get_controller_node)
     ])
