@@ -1,10 +1,8 @@
-#include "controller_plugin_base/controller_base.hpp"
 #include <vector>
+#include "controller_plugin_base/controller_base.hpp"
 
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
   std::vector<controller_plugin_base::ControllerBase*> controllers;
-  std::cout << "Hello World" << std::endl;
-  std::cout << "Array length: " << controllers.size() << std::endl;
+  std::cout << "Checking build" << std::endl;
   return 0;
 }
