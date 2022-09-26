@@ -1,6 +1,6 @@
-/********************************************************************************************
- *  \file       controller_base.cpp
- *  \brief      Controller base class implementation
+/*!*******************************************************************************************
+ *  \file       controller_manager.cpp
+ *  \brief      controller_manager main file
  *  \authors    Miguel Fernández Cortizas
  *              Pedro Arias Pérez
  *              David Pérez Saura
@@ -34,17 +34,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ********************************************************************************/
 
-#include "controller_plugin_base/controller_base.hpp"
-
-#include <rcl/time.h>
-
-#include <as2_core/control_mode_utils/control_mode_utils.hpp>
-#include <chrono>
-#include <rclcpp/clock.hpp>
-#include <rclcpp/logging.hpp>
-#include <rclcpp/rate.hpp>
-
-namespace controller_plugin_base {
+#include "controller_manager/controller_handler.hpp"
 
 static inline bool checkMatchWithMask(const uint8_t mode1,
                                       const uint8_t mode2,
@@ -67,7 +57,7 @@ static uint8_t findBestMatchWithMask(const uint8_t mode,
   return best_match;
 }
 
-void ControllerBase::initialize(as2::Node *node_ptr) {
+void ControllerHandler::initialize(as2::Node *node_ptr) {
   node_ptr_ = node_ptr;
 
   node_ptr_->get_parameter("use_bypass", use_bypass_);
@@ -80,20 +70,20 @@ void ControllerBase::initialize(as2::Node *node_ptr) {
       as2_names::topics::self_localization::qos.get_rmw_qos_profile());
   synchronizer_ = std::make_shared<message_filters::Synchronizer<approximate_policy>>(
       approximate_policy(5), *(pose_sub_.get()), *(twist_sub_.get()));
-  synchronizer_->registerCallback(&ControllerBase::state_callback, this);
+  synchronizer_->registerCallback(&ControllerHandler::state_callback, this);
 
   ref_pose_sub_ = node_ptr_->create_subscription<geometry_msgs::msg::PoseStamped>(
       as2_names::topics::motion_reference::pose, as2_names::topics::motion_reference::qos,
-      std::bind(&ControllerBase::ref_pose_callback, this, std::placeholders::_1));
+      std::bind(&ControllerHandler::ref_pose_callback, this, std::placeholders::_1));
   ref_twist_sub_ = node_ptr_->create_subscription<geometry_msgs::msg::TwistStamped>(
       as2_names::topics::motion_reference::twist, as2_names::topics::motion_reference::qos,
-      std::bind(&ControllerBase::ref_twist_callback, this, std::placeholders::_1));
+      std::bind(&ControllerHandler::ref_twist_callback, this, std::placeholders::_1));
   ref_traj_sub_ = node_ptr_->create_subscription<trajectory_msgs::msg::JointTrajectoryPoint>(
       as2_names::topics::motion_reference::trajectory, as2_names::topics::motion_reference::qos,
-      std::bind(&ControllerBase::ref_traj_callback, this, std::placeholders::_1));
+      std::bind(&ControllerHandler::ref_traj_callback, this, std::placeholders::_1));
   platform_info_sub_ = node_ptr_->create_subscription<as2_msgs::msg::PlatformInfo>(
       as2_names::topics::platform::info, as2_names::topics::platform::qos,
-      std::bind(&ControllerBase::platform_info_callback, this, std::placeholders::_1));
+      std::bind(&ControllerHandler::platform_info_callback, this, std::placeholders::_1));
 
   set_control_mode_client_ =
       std::make_shared<as2::SynchronousServiceClient<as2_msgs::srv::SetControlMode>>(
@@ -112,12 +102,12 @@ void ControllerBase::initialize(as2::Node *node_ptr) {
 
   using namespace std::chrono_literals;
   // FIXME: Hardcoded timer period
-  control_timer_ =
-      node_ptr_->create_wall_timer(10ms, std::bind(&ControllerBase::control_timer_callback, this));
+  control_timer_ = node_ptr_->create_wall_timer(
+      10ms, std::bind(&ControllerHandler::control_timer_callback, this));
 
   set_control_mode_srv_ = node_ptr->create_service<as2_msgs::srv::SetControlMode>(
       as2_names::services::controller::set_control_mode,
-      std::bind(&ControllerBase::setControlModeSrvCall, this,
+      std::bind(&ControllerHandler::setControlModeSrvCall, this,
                 std::placeholders::_1,  // Corresponds to the 'request'  input
                 std::placeholders::_2   // Corresponds to the 'response' input
                 ));
@@ -125,42 +115,42 @@ void ControllerBase::initialize(as2::Node *node_ptr) {
   input_mode_.control_mode  = as2_msgs::msg::ControlMode::UNSET;
   output_mode_.control_mode = as2_msgs::msg::ControlMode::UNSET;
 
-  ownInitialize();
+  controller_ptr_->initialize(node_ptr_);
 }
 
-void ControllerBase::state_callback(
+void ControllerHandler::state_callback(
     const geometry_msgs::msg::PoseStamped::ConstSharedPtr pose_msg,
     const geometry_msgs::msg::TwistStamped::ConstSharedPtr twist_msg) {
   state_adquired_ = true;
   pose_           = *pose_msg;
   twist_          = *twist_msg;
-  if (!bypass_controller_) updateState(pose_, twist_);
+  if (!bypass_controller_) controller_ptr_->updateState(pose_, twist_);
 }
 
-void ControllerBase::ref_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
+void ControllerHandler::ref_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
   motion_reference_adquired_ = true;
   ref_pose_                  = *msg;
-  if (!bypass_controller_) updateReference(ref_pose_);
+  if (!bypass_controller_) controller_ptr_->updateReference(ref_pose_);
 }
 
-void ControllerBase::ref_twist_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
+void ControllerHandler::ref_twist_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
   motion_reference_adquired_ = true;
   ref_twist_                 = *msg;
-  if (!bypass_controller_) updateReference(ref_twist_);
+  if (!bypass_controller_) controller_ptr_->updateReference(ref_twist_);
 }
 
-void ControllerBase::ref_traj_callback(
+void ControllerHandler::ref_traj_callback(
     const trajectory_msgs::msg::JointTrajectoryPoint::SharedPtr msg) {
   motion_reference_adquired_ = true;
   ref_traj_                  = *msg;
-  if (!bypass_controller_) updateReference(ref_traj_);
+  if (!bypass_controller_) controller_ptr_->updateReference(ref_traj_);
 }
 
-void ControllerBase::platform_info_callback(const as2_msgs::msg::PlatformInfo::SharedPtr msg) {
+void ControllerHandler::platform_info_callback(const as2_msgs::msg::PlatformInfo::SharedPtr msg) {
   platform_info_ = *msg;
 }
 
-void ControllerBase::control_timer_callback() {
+void ControllerHandler::control_timer_callback() {
   if (!platform_info_.offboard || !platform_info_.armed) {
     return;
   }
@@ -180,7 +170,7 @@ void ControllerBase::control_timer_callback() {
 };
 
 // TODO: move to ControllerManager?
-bool ControllerBase::setPlatformControlMode(const as2_msgs::msg::ControlMode &mode) {
+bool ControllerHandler::setPlatformControlMode(const as2_msgs::msg::ControlMode &mode) {
   as2_msgs::srv::SetControlMode::Request set_control_mode_req;
   as2_msgs::srv::SetControlMode::Response set_control_mode_resp;
   set_control_mode_req.control_mode = mode;
@@ -189,7 +179,7 @@ bool ControllerBase::setPlatformControlMode(const as2_msgs::msg::ControlMode &mo
   return false;
 };
 
-bool ControllerBase::listPlatformAvailableControlModes() {
+bool ControllerHandler::listPlatformAvailableControlModes() {
   if (platform_available_modes_in_.empty()) {
     RCLCPP_DEBUG(node_ptr_->get_logger(), "LISTING AVAILABLE MODES");
     // if the list is empty, send a request to the platform to get the list of
@@ -219,7 +209,7 @@ bool ControllerBase::listPlatformAvailableControlModes() {
   return true;
 }
 
-bool ControllerBase::tryToBypassController(const uint8_t input_mode, uint8_t &output_mode) {
+bool ControllerHandler::tryToBypassController(const uint8_t input_mode, uint8_t &output_mode) {
   // check if platform available modes are set
   if ((input_mode & MATCH_MODE) == UNSET_MODE_MASK ||
       (input_mode & MATCH_MODE) == HOVER_MODE_MASK) {
@@ -235,8 +225,8 @@ bool ControllerBase::tryToBypassController(const uint8_t input_mode, uint8_t &ou
   return false;
 }
 
-bool ControllerBase::checkSuitabilityInputMode(const uint8_t input_mode,
-                                               const uint8_t output_mode) {
+bool ControllerHandler::checkSuitabilityInputMode(const uint8_t input_mode,
+                                                  const uint8_t output_mode) {
   // check if input_conversion is in the list of available modes
   bool mode_found = false;
   for (auto &mode : controller_available_modes_in_) {
@@ -259,8 +249,9 @@ bool ControllerBase::checkSuitabilityInputMode(const uint8_t input_mode,
   return mode_found;
 }
 
-bool ControllerBase::findSuitableOutputControlModeForPlatformInputMode(uint8_t &output_mode,
-                                                                       const uint8_t input_mode) {
+bool ControllerHandler::findSuitableOutputControlModeForPlatformInputMode(
+    uint8_t &output_mode,
+    const uint8_t input_mode) {
   //  check if the prefered mode is available
   if (prefered_output_mode_) {
     auto match =
@@ -292,7 +283,7 @@ bool ControllerBase::findSuitableOutputControlModeForPlatformInputMode(uint8_t &
   return true;
 }
 
-void ControllerBase::setControlModeSrvCall(
+void ControllerHandler::setControlModeSrvCall(
     const as2_msgs::srv::SetControlMode::Request::SharedPtr request,
     as2_msgs::srv::SetControlMode::Response::SharedPtr response) {
   control_mode_established_ = false;
@@ -359,7 +350,7 @@ void ControllerBase::setControlModeSrvCall(
                 as2::controlModeToString(output_mode_).c_str());
     as2::printControlMode(output_mode_);
     auto unset_mode           = as2::convertUint8tToAS2ControlMode(UNSET_MODE_MASK);
-    response->success         = setMode(unset_mode, unset_mode);
+    response->success         = controller_ptr_->setMode(unset_mode, unset_mode);
     control_mode_established_ = response->success;
     return;
   }
@@ -369,7 +360,7 @@ void ControllerBase::setControlModeSrvCall(
   RCLCPP_INFO(node_ptr_->get_logger(), "output_mode:[%s]",
               as2::controlModeToString(output_mode_).c_str());
 
-  response->success         = setMode(input_mode_, output_mode_);
+  response->success         = controller_ptr_->setMode(input_mode_, output_mode_);
   control_mode_established_ = response->success;
 
   if (!response->success) {
@@ -380,7 +371,7 @@ void ControllerBase::setControlModeSrvCall(
   return;
 }
 
-void ControllerBase::sendCommand() {
+void ControllerHandler::sendCommand() {
   if (bypass_controller_) {
     if (!motion_reference_adquired_) {
       auto &clock = *node_ptr_->get_clock();
@@ -395,7 +386,7 @@ void ControllerBase::sendCommand() {
   geometry_msgs::msg::PoseStamped pose;
   geometry_msgs::msg::TwistStamped twist;
   as2_msgs::msg::Thrust thrust;
-  computeOutput(pose, twist, thrust);
+  controller_ptr_->computeOutput(pose, twist, thrust);
 
   // set time stamp
   pose.header.stamp  = node_ptr_->now();
@@ -406,5 +397,3 @@ void ControllerBase::sendCommand() {
   twist_pub_->publish(twist);
   thrust_pub_->publish(thrust);
 };
-
-}  // namespace controller_plugin_base

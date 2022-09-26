@@ -1,8 +1,6 @@
-/********************************************************************************************
- *  \file       controller_base.hpp
- *  \brief      Declares the controller_plugin_base class which is the base
- *class for all controller plugins.
- *
+/*!*******************************************************************************************
+ *  \file       controller_manager.cpp
+ *  \brief      controller_manager main file
  *  \authors    Miguel Fernández Cortizas
  *              Pedro Arias Pérez
  *              David Pérez Saura
@@ -36,49 +34,18 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ********************************************************************************/
 
-#ifndef CONTROLLER_BASE_HPP
-#define CONTROLLER_BASE_HPP
+#include "as2_core/core_functions.hpp"
+#include "controller_manager/controller_manager.hpp"
 
-#include "as2_msgs/msg/control_mode.hpp"
-#include "as2_msgs/msg/thrust.hpp"
-#include "geometry_msgs/msg/pose_stamped.hpp"
-#include "geometry_msgs/msg/twist_stamped.hpp"
-#include "rclcpp/rclcpp.hpp"
-#include "trajectory_msgs/msg/joint_trajectory_point.hpp"
+int main(int argc, char* argv[]) {
+  setvbuf(stdout, NULL, _IONBF, BUFSIZ);
 
-namespace controller_plugin_base {
+  rclcpp::init(argc, argv);
 
-class ControllerBase {
-public:
-  ControllerBase(){};
+  auto node = std::make_shared<ControllerManager>();
+  node->preset_loop_frequency(node->cmd_freq_);
+  as2::spinLoop(node);
 
-  void initialize(rclcpp::Node* node_ptr) {
-    node_ptr_ = node_ptr;
-    ownInitialize();
-  };
-  virtual void ownInitialize(){};
-  virtual void updateState(const geometry_msgs::msg::PoseStamped& pose_msg,
-                           const geometry_msgs::msg::TwistStamped& twist_msg) = 0;
-
-  virtual void updateReference(const geometry_msgs::msg::PoseStamped& ref){};
-  virtual void updateReference(const geometry_msgs::msg::TwistStamped& ref){};
-  virtual void updateReference(const trajectory_msgs::msg::JointTrajectoryPoint& ref){};
-  virtual void updateReference(const as2_msgs::msg::Thrust& ref){};
-
-  virtual void computeOutput(geometry_msgs::msg::PoseStamped& pose,
-                             geometry_msgs::msg::TwistStamped& twist,
-                             as2_msgs::msg::Thrust& thrust) = 0;
-
-  virtual bool setMode(const as2_msgs::msg::ControlMode& mode_in,
-                       const as2_msgs::msg::ControlMode& mode_out) = 0;
-
-  virtual ~ControllerBase(){};
-
-protected:
-  rclcpp::Node* node_ptr_;
-
-};  //  ControllerBase
-
-};  // namespace controller_plugin_base
-
-#endif  // CONTROLLER_BASE_HPP
+  rclcpp::shutdown();
+  return 0;
+}
