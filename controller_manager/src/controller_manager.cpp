@@ -62,14 +62,15 @@ ControllerManager::ControllerManager() : as2::Node("controller_manager") {
   loader_ = std::make_shared<pluginlib::ClassLoader<controller_plugin_base::ControllerBase>>(
       "controller_plugin_base", "controller_plugin_base::ControllerBase");
   try {
-    controller_ = loader_->createSharedInstance(plugin_name_);
+    controller_         = loader_->createSharedInstance(plugin_name_);
+    controller_handler_ = std::make_shared<ControllerHandler>(controller_);
     RCLCPP_INFO(this->get_logger(), "PLUGIN LOADED [%s]", plugin_name_.c_str());
   } catch (pluginlib::PluginlibException& ex) {
     RCLCPP_ERROR(this->get_logger(), "The plugin failed to load for some reason. Error: %s\n",
                  ex.what());
   }
 
-  controller_->initialize(this);
+  controller_handler_->initialize(this);
   if (available_modes_config_file_.empty()) {
     available_modes_config_file_ = loader_->getPluginManifestPath(plugin_name_);
   }
@@ -104,13 +105,13 @@ void ControllerManager::config_available_control_modes(const std::filesystem::pa
 
   RCLCPP_INFO(this->get_logger(), "==========================================================");
 
-  controller_->setInputControlModesAvailables(available_input_modes);
-  controller_->setOutputControlModesAvailables(available_output_modes);
+  controller_handler_->setInputControlModesAvailables(available_input_modes);
+  controller_handler_->setOutputControlModesAvailables(available_output_modes);
 };
 
 void ControllerManager::mode_timer_callback() {
   as2_msgs::msg::ControllerInfo msg;
   msg.header.stamp         = this->now();
-  msg.current_control_mode = controller_->getMode();
+  msg.current_control_mode = controller_handler_->getMode();
   mode_pub_->publish(msg);
 };

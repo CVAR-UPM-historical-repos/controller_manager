@@ -47,7 +47,7 @@
 #include <pluginlib/class_loader.hpp>
 #include <rclcpp/logging.hpp>
 
-#include "controller_plugin_base/controller_base.hpp"
+#include "controller_handler.hpp"
 
 class ControllerManager : public as2::Node {
 public:
@@ -67,6 +67,7 @@ private:
   std::filesystem::path available_modes_config_file_;
 
   std::shared_ptr<pluginlib::ClassLoader<controller_plugin_base::ControllerBase>> loader_;
+  std::shared_ptr<ControllerHandler> controller_handler_;
   std::shared_ptr<controller_plugin_base::ControllerBase> controller_;
   rclcpp::Publisher<as2_msgs::msg::ControllerInfo>::SharedPtr mode_pub_;
   rclcpp::TimerBase::SharedPtr mode_timer_;
