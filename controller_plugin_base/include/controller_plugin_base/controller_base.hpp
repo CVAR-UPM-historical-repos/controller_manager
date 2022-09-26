@@ -52,6 +52,10 @@ class ControllerBase {
 public:
   ControllerBase(){};
 
+  void initialize(rclcpp::Node* node_ptr) {
+    node_ptr_ = node_ptr;
+    ownInitialize();
+  };
   virtual void ownInitialize(){};
   virtual void updateState(const geometry_msgs::msg::PoseStamped& pose_msg,
                            const geometry_msgs::msg::TwistStamped& twist_msg) = 0;
@@ -71,7 +75,7 @@ public:
   virtual ~ControllerBase(){};
 
 protected:
-  rclcpp::Node::SharedPtr node_ptr_;
+  rclcpp::Node* node_ptr_;
 
 };  //  ControllerBase
 

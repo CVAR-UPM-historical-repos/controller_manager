@@ -115,7 +115,7 @@ void ControllerHandler::initialize(as2::Node *node_ptr) {
   input_mode_.control_mode  = as2_msgs::msg::ControlMode::UNSET;
   output_mode_.control_mode = as2_msgs::msg::ControlMode::UNSET;
 
-  controller_ptr_->ownInitialize();
+  controller_ptr_->initialize(node_ptr_);
 }
 
 void ControllerHandler::state_callback(
