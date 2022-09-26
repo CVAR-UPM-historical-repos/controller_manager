@@ -39,7 +39,7 @@ foreach(DEPENDENCY ${PROJECT_DEPENDENCIES})
   find_package(${DEPENDENCY} REQUIRED)
 endforeach()
 
-add_executable(${PROJECT_NAME}_node src/controller_manager.cpp)
+add_executable(${PROJECT_NAME}_node src/controller_manager_node.cpp src/controller_manager.cpp)
 target_link_libraries(${PROJECT_NAME}_node yaml-cpp)
 target_include_directories(${PROJECT_NAME}_node 
   PUBLIC

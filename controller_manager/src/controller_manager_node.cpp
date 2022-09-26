@@ -1,6 +1,6 @@
 /*!*******************************************************************************************
- *  \file       controller_manager.hpp
- *  \brief      Controller manager class definition
+ *  \file       controller_manager.cpp
+ *  \brief      controller_manager main file
  *  \authors    Miguel Fernández Cortizas
  *              Pedro Arias Pérez
  *              David Pérez Saura
@@ -34,42 +34,18 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ********************************************************************************/
 
-#ifndef CONTROLLER_MANAGER_HPP
-#define CONTROLLER_MANAGER_HPP
+#include "as2_core/core_functions.hpp"
+#include "controller_manager/controller_manager.hpp"
 
-#include <as2_core/control_mode_utils/control_mode_utils.hpp>
-#include <as2_core/node.hpp>
-#include <as2_core/yaml_utils/yaml_utils.hpp>
-#include <as2_msgs/msg/controller_info.hpp>
+int main(int argc, char* argv[]) {
+  setvbuf(stdout, NULL, _IONBF, BUFSIZ);
 
-#include <chrono>
-#include <filesystem>
-#include <pluginlib/class_loader.hpp>
-#include <rclcpp/logging.hpp>
+  rclcpp::init(argc, argv);
 
-#include "controller_plugin_base/controller_base.hpp"
+  auto node = std::make_shared<ControllerManager>();
+  node->preset_loop_frequency(node->cmd_freq_);
+  as2::spinLoop(node);
 
-class ControllerManager : public as2::Node {
-public:
-  ControllerManager();
-  ~ControllerManager();
-
-private:
-  void config_available_control_modes(const std::filesystem::path project_path);
-  void mode_timer_callback();
-
-public:
-  double cmd_freq_;
-
-private:
-  double info_freq_;
-  std::filesystem::path plugin_name_;
-  std::filesystem::path available_modes_config_file_;
-
-  std::shared_ptr<pluginlib::ClassLoader<controller_plugin_base::ControllerBase>> loader_;
-  std::shared_ptr<controller_plugin_base::ControllerBase> controller_;
-  rclcpp::Publisher<as2_msgs::msg::ControllerInfo>::SharedPtr mode_pub_;
-  rclcpp::TimerBase::SharedPtr mode_timer_;
-};
-
-#endif  // CONTROLLER_MANAGER_HPP
+  rclcpp::shutdown();
+  return 0;
+}
