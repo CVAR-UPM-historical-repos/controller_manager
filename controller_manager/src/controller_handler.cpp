@@ -397,4 +397,3 @@ void ControllerHandler::sendCommand() {
   twist_pub_->publish(twist);
   thrust_pub_->publish(thrust);
 };
-
