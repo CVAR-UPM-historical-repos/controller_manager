@@ -40,7 +40,7 @@ include_directories(
 add_executable(${PROJECT_NAME}_test test/plugin_base_build_test.cpp)
 ament_target_dependencies(${PROJECT_NAME}_test ${PROJECT_DEPENDENCIES})
 
-add_library(${PROJECT_NAME} src/controller_base.cpp)
+add_library(${PROJECT_NAME} src/controller_plugin.cpp)
 target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
