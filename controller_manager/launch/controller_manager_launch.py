@@ -38,10 +38,13 @@ def get_controller_node(context, *args, **kwargs):
     node = Node(
         package='controller_manager',
         executable='controller_manager_node',
-        namespace=LaunchConfiguration('drone_id'),
+        namespace=LaunchConfiguration('namespace'),
         parameters=[LaunchConfiguration('config'), 
                     plugin_config, 
-                    {"use_sim_time": LaunchConfiguration('use_sim_time')}],
+                    {"use_sim_time": LaunchConfiguration('use_sim_time')},
+                    {"odom_frame_id": LaunchConfiguration('odom_frame_id')},
+                    {"base_frame_id": LaunchConfiguration('base_frame_id')},
+                    {"use_bypass": LaunchConfiguration('use_bypass')}],
         output='screen',
         emulate_tty=True
     )
@@ -56,8 +59,11 @@ def generate_launch_description():
     ])
 
     ld = LaunchDescription([
-        DeclareLaunchArgument('drone_id', default_value=EnvironmentVariable('AEROSTACK2_SIMULATION_DRONE_ID')),
+        DeclareLaunchArgument('namespace', default_value=EnvironmentVariable('AEROSTACK2_SIMULATION_DRONE_ID')),
         DeclareLaunchArgument('use_sim_time', default_value='false'),
+        DeclareLaunchArgument('odom_frame_id', default_value='odom'),
+        DeclareLaunchArgument('base_frame_id', default_value='base_link'),
+        DeclareLaunchArgument('use_bypass', default_value='true'),
         DeclareLaunchArgument('config', default_value=config),
         OpaqueFunction(function=get_controller_node)
     ])

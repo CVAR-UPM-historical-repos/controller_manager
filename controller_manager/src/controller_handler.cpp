@@ -62,17 +62,13 @@ ControllerHandler::ControllerHandler(
     std::shared_ptr<controller_plugin_base::ControllerBase> controller,
     std::shared_ptr<as2::Node> node)
     : controller_ptr_(controller), node_ptr_(node), tf_handler_(node->as2_node_shared_from_this()) {
-  node_ptr_->get_parameter("use_bypass", use_bypass_);
+  node_ptr_->declare_parameter<bool>("use_bypass", false);
+  node_ptr_->declare_parameter<std::string>("odom_frame_id", "odom");
+  node_ptr_->declare_parameter<std::string>("base_frame_id", "base_link");
 
-  /* pose_sub_ = std::make_shared<message_filters::Subscriber<geometry_msgs::msg::PoseStamped>>(
-      node_ptr_, as2_names::topics::self_localization::pose,
-      as2_names::topics::self_localization::qos.get_rmw_qos_profile());
-  twist_sub_ = std::make_shared<message_filters::Subscriber<geometry_msgs::msg::TwistStamped>>(
-      node_ptr_, as2_names::topics::self_localization::twist,
-      as2_names::topics::self_localization::qos.get_rmw_qos_profile());
-  synchronizer_ = std::make_shared<message_filters::Synchronizer<approximate_policy>>(
-      approximate_policy(5), *(pose_sub_.get()), *(twist_sub_.get()));
-  synchronizer_->registerCallback(&ControllerHandler::state_callback, this); */
+  node_ptr_->get_parameter("use_bypass", use_bypass_);
+  node_ptr_->get_parameter("odom_frame_id", odom_frame_id_);
+  node_ptr_->get_parameter("base_frame_id", base_frame_id_);
 
   ref_pose_sub_ = node_ptr_->create_subscription<geometry_msgs::msg::PoseStamped>(
       as2_names::topics::motion_reference::pose, as2_names::topics::motion_reference::qos,
@@ -128,8 +124,8 @@ void ControllerHandler::state_callback(const geometry_msgs::msg::TwistStamped _t
   try {
     // obtain transform from world to base_link
     //
-    pose_msg  = tf_handler_.getPoseStamped("odom", "base_link");
-    twist_msg = tf_handler_.convert(_twist_msg, "odom");
+    pose_msg  = tf_handler_.getPoseStamped(odom_frame_id_, base_frame_id_);
+    twist_msg = tf_handler_.convert(_twist_msg, odom_frame_id_);
 
   } catch (tf2::TransformException &ex) {
     RCLCPP_WARN(node_ptr_->get_logger(), "Could not get transform: %s", ex.what());
@@ -145,7 +141,7 @@ void ControllerHandler::ref_pose_callback(const geometry_msgs::msg::PoseStamped:
   motion_reference_adquired_ = true;
   try {
     // obtain transform to odom frame
-    ref_pose_ = tf_handler_.convert(*msg, "odom");
+    ref_pose_ = tf_handler_.convert(*msg, odom_frame_id_);
 
   } catch (tf2::TransformException &ex) {
     RCLCPP_WARN(node_ptr_->get_logger(), "Ref pose Cb : Could not get transform: %s", ex.what());
@@ -158,7 +154,7 @@ void ControllerHandler::ref_twist_callback(const geometry_msgs::msg::TwistStampe
   motion_reference_adquired_ = true;
   try {
     // obtain transform to odom frame
-    ref_twist_ = tf_handler_.convert(*msg, "odom");
+    ref_twist_ = tf_handler_.convert(*msg, odom_frame_id_);
 
   } catch (tf2::TransformException &ex) {
     RCLCPP_WARN(node_ptr_->get_logger(), "Ref twist Cb : Could not get transform: %s", ex.what());

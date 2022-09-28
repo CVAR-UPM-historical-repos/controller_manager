@@ -84,15 +84,9 @@ private:
   std::vector<uint8_t> controller_available_modes_out_;
   std::vector<uint8_t> platform_available_modes_in_;
 
-  /* std::shared_ptr<message_filters::Subscriber<geometry_msgs::msg::PoseStamped>> pose_sub_;
-  std::shared_ptr<message_filters::Subscriber<geometry_msgs::msg::TwistStamped>> twist_sub_;
-  typedef message_filters::sync_policies::ApproximateTime<geometry_msgs::msg::PoseStamped,
-                                                          geometry_msgs::msg::TwistStamped>
-      approximate_policy;
-  std::shared_ptr<message_filters::Synchronizer<approximate_policy>> synchronizer_; */
+  std::string odom_frame_id_ = "odom";
+  std::string base_frame_id_ = "base_link";
 
-  // Add tf2 listener
-  //
   as2::tf::TfHandler tf_handler_;
 
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr twist_sub_;
