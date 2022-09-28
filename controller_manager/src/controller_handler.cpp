@@ -35,6 +35,7 @@
  ********************************************************************************/
 
 #include "controller_manager/controller_handler.hpp"
+#include <as2_core/utils/tf_utils.hpp>
 
 static inline bool checkMatchWithMask(const uint8_t mode1,
                                       const uint8_t mode2,
@@ -57,12 +58,13 @@ static uint8_t findBestMatchWithMask(const uint8_t mode,
   return best_match;
 }
 
-void ControllerHandler::initialize(as2::Node *node_ptr) {
-  node_ptr_ = node_ptr;
-
+ControllerHandler::ControllerHandler(
+    std::shared_ptr<controller_plugin_base::ControllerBase> controller,
+    std::shared_ptr<as2::Node> node)
+    : controller_ptr_(controller), node_ptr_(node), tf_handler_(node->as2_node_shared_from_this()) {
   node_ptr_->get_parameter("use_bypass", use_bypass_);
 
-  pose_sub_ = std::make_shared<message_filters::Subscriber<geometry_msgs::msg::PoseStamped>>(
+  /* pose_sub_ = std::make_shared<message_filters::Subscriber<geometry_msgs::msg::PoseStamped>>(
       node_ptr_, as2_names::topics::self_localization::pose,
       as2_names::topics::self_localization::qos.get_rmw_qos_profile());
   twist_sub_ = std::make_shared<message_filters::Subscriber<geometry_msgs::msg::TwistStamped>>(
@@ -70,7 +72,7 @@ void ControllerHandler::initialize(as2::Node *node_ptr) {
       as2_names::topics::self_localization::qos.get_rmw_qos_profile());
   synchronizer_ = std::make_shared<message_filters::Synchronizer<approximate_policy>>(
       approximate_policy(5), *(pose_sub_.get()), *(twist_sub_.get()));
-  synchronizer_->registerCallback(&ControllerHandler::state_callback, this);
+  synchronizer_->registerCallback(&ControllerHandler::state_callback, this); */
 
   ref_pose_sub_ = node_ptr_->create_subscription<geometry_msgs::msg::PoseStamped>(
       as2_names::topics::motion_reference::pose, as2_names::topics::motion_reference::qos,
@@ -84,6 +86,10 @@ void ControllerHandler::initialize(as2::Node *node_ptr) {
   platform_info_sub_ = node_ptr_->create_subscription<as2_msgs::msg::PlatformInfo>(
       as2_names::topics::platform::info, as2_names::topics::platform::qos,
       std::bind(&ControllerHandler::platform_info_callback, this, std::placeholders::_1));
+
+  twist_sub_ = node_ptr_->create_subscription<geometry_msgs::msg::TwistStamped>(
+      as2_names::topics::self_localization::twist, as2_names::topics::self_localization::qos,
+      std::bind(&ControllerHandler::state_callback, this, std::placeholders::_1));
 
   set_control_mode_client_ =
       std::make_shared<as2::SynchronousServiceClient<as2_msgs::srv::SetControlMode>>(
@@ -105,7 +111,7 @@ void ControllerHandler::initialize(as2::Node *node_ptr) {
   control_timer_ = node_ptr_->create_wall_timer(
       10ms, std::bind(&ControllerHandler::control_timer_callback, this));
 
-  set_control_mode_srv_ = node_ptr->create_service<as2_msgs::srv::SetControlMode>(
+  set_control_mode_srv_ = node_ptr_->create_service<as2_msgs::srv::SetControlMode>(
       as2_names::services::controller::set_control_mode,
       std::bind(&ControllerHandler::setControlModeSrvCall, this,
                 std::placeholders::_1,  // Corresponds to the 'request'  input
@@ -114,33 +120,56 @@ void ControllerHandler::initialize(as2::Node *node_ptr) {
 
   input_mode_.control_mode  = as2_msgs::msg::ControlMode::UNSET;
   output_mode_.control_mode = as2_msgs::msg::ControlMode::UNSET;
-
-  controller_ptr_->initialize(node_ptr_);
 }
 
-void ControllerHandler::state_callback(
-    const geometry_msgs::msg::PoseStamped::ConstSharedPtr pose_msg,
-    const geometry_msgs::msg::TwistStamped::ConstSharedPtr twist_msg) {
+void ControllerHandler::state_callback(const geometry_msgs::msg::TwistStamped _twist_msg) {
+  geometry_msgs::msg::PoseStamped pose_msg;
+  geometry_msgs::msg::TwistStamped twist_msg;
+  try {
+    // obtain transform from world to base_link
+    //
+    pose_msg  = tf_handler_.getPoseStamped("odom", "base_link");
+    twist_msg = tf_handler_.convert(_twist_msg, "odom");
+
+  } catch (tf2::TransformException &ex) {
+    RCLCPP_WARN(node_ptr_->get_logger(), "Could not get transform: %s", ex.what());
+    return;
+  }
   state_adquired_ = true;
-  pose_           = *pose_msg;
-  twist_          = *twist_msg;
+  pose_           = pose_msg;
+  twist_          = twist_msg;
   if (!bypass_controller_) controller_ptr_->updateState(pose_, twist_);
 }
 
 void ControllerHandler::ref_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
   motion_reference_adquired_ = true;
-  ref_pose_                  = *msg;
+  try {
+    // obtain transform to odom frame
+    ref_pose_ = tf_handler_.convert(*msg, "odom");
+
+  } catch (tf2::TransformException &ex) {
+    RCLCPP_WARN(node_ptr_->get_logger(), "Ref pose Cb : Could not get transform: %s", ex.what());
+    return;
+  }
   if (!bypass_controller_) controller_ptr_->updateReference(ref_pose_);
 }
 
 void ControllerHandler::ref_twist_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
   motion_reference_adquired_ = true;
-  ref_twist_                 = *msg;
+  try {
+    // obtain transform to odom frame
+    ref_twist_ = tf_handler_.convert(*msg, "odom");
+
+  } catch (tf2::TransformException &ex) {
+    RCLCPP_WARN(node_ptr_->get_logger(), "Ref twist Cb : Could not get transform: %s", ex.what());
+    return;
+  }
   if (!bypass_controller_) controller_ptr_->updateReference(ref_twist_);
 }
 
 void ControllerHandler::ref_traj_callback(
     const trajectory_msgs::msg::JointTrajectoryPoint::SharedPtr msg) {
+  // TODO: FORCE TRAJECTORY TO BE IN ODOM FRAME
   motion_reference_adquired_ = true;
   ref_traj_                  = *msg;
   if (!bypass_controller_) controller_ptr_->updateReference(ref_traj_);
@@ -169,7 +198,6 @@ void ControllerHandler::control_timer_callback() {
   sendCommand();
 };
 
-// TODO: move to ControllerManager?
 bool ControllerHandler::setPlatformControlMode(const as2_msgs::msg::ControlMode &mode) {
   as2_msgs::srv::SetControlMode::Request set_control_mode_req;
   as2_msgs::srv::SetControlMode::Response set_control_mode_resp;
@@ -201,7 +229,7 @@ bool ControllerHandler::listPlatformAvailableControlModes() {
     // log the available modes
     for (auto &mode : list_control_modes_resp.control_modes) {
       RCLCPP_DEBUG(node_ptr_->get_logger(), "Available mode: %s",
-                   as2::controlModeToString(mode).c_str());
+                   as2::control_mode::controlModeToString(mode).c_str());
     }
 
     platform_available_modes_in_ = list_control_modes_resp.control_modes;
@@ -292,7 +320,8 @@ void ControllerHandler::setControlModeSrvCall(
   if (request->control_mode.control_mode == as2_msgs::msg::ControlMode::HOVER) {
     input_control_mode_desired = HOVER_MODE_MASK;
   } else {
-    input_control_mode_desired = as2::convertAS2ControlModeToUint8t(request->control_mode);
+    input_control_mode_desired =
+        as2::control_mode::convertAS2ControlModeToUint8t(request->control_mode);
   }
 
   // check if platform_available_modes is set
@@ -301,8 +330,8 @@ void ControllerHandler::setControlModeSrvCall(
     return;
   }
 
-  // 1st: check if a bypass is possible for the input_control_mode_desired (
-  // DISCARDING YAW COMPONENT)
+  // 1st: check if a bypass is possible for the input_control_mode_desired ( DISCARDING YAW
+  // COMPONENT)
 
   uint8_t output_control_mode_candidate = 0;
 
@@ -332,7 +361,8 @@ void ControllerHandler::setControlModeSrvCall(
   }
 
   // request the common mode to the platform
-  auto mode_to_request = as2::convertUint8tToAS2ControlMode(output_control_mode_candidate);
+  auto mode_to_request =
+      as2::control_mode::convertUint8tToAS2ControlMode(output_control_mode_candidate);
   if (!setPlatformControlMode(mode_to_request)) {
     RCLCPP_ERROR(node_ptr_->get_logger(), "Failed to set platform control mode");
     response->success = false;
@@ -345,20 +375,20 @@ void ControllerHandler::setControlModeSrvCall(
   if (bypass_controller_) {
     RCLCPP_INFO(node_ptr_->get_logger(), "Bypassing controller:");
     RCLCPP_INFO(node_ptr_->get_logger(), "input_mode:[%s]",
-                as2::controlModeToString(input_mode_).c_str());
+                as2::control_mode::controlModeToString(input_mode_).c_str());
     RCLCPP_INFO(node_ptr_->get_logger(), "output_mode:[%s]",
-                as2::controlModeToString(output_mode_).c_str());
-    as2::printControlMode(output_mode_);
-    auto unset_mode           = as2::convertUint8tToAS2ControlMode(UNSET_MODE_MASK);
+                as2::control_mode::controlModeToString(output_mode_).c_str());
+    as2::control_mode::printControlMode(output_mode_);
+    auto unset_mode           = as2::control_mode::convertUint8tToAS2ControlMode(UNSET_MODE_MASK);
     response->success         = controller_ptr_->setMode(unset_mode, unset_mode);
     control_mode_established_ = response->success;
     return;
   }
 
   RCLCPP_INFO(node_ptr_->get_logger(), "input_mode:[%s]",
-              as2::controlModeToString(input_mode_).c_str());
+              as2::control_mode::controlModeToString(input_mode_).c_str());
   RCLCPP_INFO(node_ptr_->get_logger(), "output_mode:[%s]",
-              as2::controlModeToString(output_mode_).c_str());
+              as2::control_mode::controlModeToString(output_mode_).c_str());
 
   response->success         = controller_ptr_->setMode(input_mode_, output_mode_);
   control_mode_established_ = response->success;

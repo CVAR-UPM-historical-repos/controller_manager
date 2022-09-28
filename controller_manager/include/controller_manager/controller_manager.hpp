@@ -37,9 +37,9 @@
 #ifndef CONTROLLER_MANAGER_HPP
 #define CONTROLLER_MANAGER_HPP
 
-#include <as2_core/control_mode_utils/control_mode_utils.hpp>
 #include <as2_core/node.hpp>
-#include <as2_core/yaml_utils/yaml_utils.hpp>
+#include <as2_core/utils/control_mode_utils.hpp>
+#include <as2_core/utils/yaml_utils.hpp>
 #include <as2_msgs/msg/controller_info.hpp>
 
 #include <chrono>

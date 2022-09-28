@@ -56,17 +56,20 @@
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "trajectory_msgs/msg/joint_trajectory_point.hpp"
 
-#include "as2_core/control_mode_utils/control_mode_utils.hpp"
 #include "as2_core/names/services.hpp"
 #include "as2_core/names/topics.hpp"
 #include "as2_core/node.hpp"
 #include "as2_core/synchronous_service_client.hpp"
+#include "as2_core/utils/control_mode_utils.hpp"
+#include "as2_core/utils/tf_utils.hpp"
 #include "as2_msgs/msg/control_mode.hpp"
 #include "as2_msgs/msg/platform_info.hpp"
 #include "as2_msgs/msg/thrust.hpp"
 #include "as2_msgs/srv/list_control_modes.hpp"
 #include "as2_msgs/srv/set_control_mode.hpp"
 #include "controller_plugin_base/controller_base.hpp"
+
+#include "as2_core/utils/tf_utils.hpp"
 
 #define MATCH_ALL 0b11111111
 #define MATCH_MODE_AND_FRAME 0b11110011
@@ -81,12 +84,18 @@ private:
   std::vector<uint8_t> controller_available_modes_out_;
   std::vector<uint8_t> platform_available_modes_in_;
 
-  std::shared_ptr<message_filters::Subscriber<geometry_msgs::msg::PoseStamped>> pose_sub_;
+  /* std::shared_ptr<message_filters::Subscriber<geometry_msgs::msg::PoseStamped>> pose_sub_;
   std::shared_ptr<message_filters::Subscriber<geometry_msgs::msg::TwistStamped>> twist_sub_;
   typedef message_filters::sync_policies::ApproximateTime<geometry_msgs::msg::PoseStamped,
                                                           geometry_msgs::msg::TwistStamped>
       approximate_policy;
-  std::shared_ptr<message_filters::Synchronizer<approximate_policy>> synchronizer_;
+  std::shared_ptr<message_filters::Synchronizer<approximate_policy>> synchronizer_; */
+
+  // Add tf2 listener
+  //
+  as2::tf::TfHandler tf_handler_;
+
+  rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr twist_sub_;
 
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr ref_pose_sub_;
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr ref_twist_sub_;
@@ -118,14 +127,11 @@ private:
   std::shared_ptr<controller_plugin_base::ControllerBase> controller_ptr_;
 
 public:
-  ControllerHandler(std::shared_ptr<controller_plugin_base::ControllerBase> controller) {
-    controller_ptr_ = controller;
-  };
+  ControllerHandler(std::shared_ptr<controller_plugin_base::ControllerBase> controller,
+                    std::shared_ptr<as2::Node> node);
 
   bool use_bypass_        = false;
   bool bypass_controller_ = false;
-
-  void initialize(as2::Node* node_ptr);
 
   as2_msgs::msg::ControlMode getMode() { return this->input_mode_; };
 
@@ -144,11 +150,10 @@ public:
   virtual ~ControllerHandler(){};
 
 protected:
-  as2::Node* node_ptr_;
+  std::shared_ptr<as2::Node> node_ptr_;
 
 private:
-  void state_callback(const geometry_msgs::msg::PoseStamped::ConstSharedPtr pose_msg,
-                      const geometry_msgs::msg::TwistStamped::ConstSharedPtr twist_msg);
+  void state_callback(const geometry_msgs::msg::TwistStamped twist_msg);
   void ref_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
   void ref_twist_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
   void ref_traj_callback(const trajectory_msgs::msg::JointTrajectoryPoint::SharedPtr msg);
