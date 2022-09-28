@@ -39,6 +39,7 @@
 #ifndef CONTROLLER_BASE_HPP
 #define CONTROLLER_BASE_HPP
 
+#include "as2_core/node.hpp"
 #include "as2_msgs/msg/control_mode.hpp"
 #include "as2_msgs/msg/thrust.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
@@ -52,7 +53,7 @@ class ControllerBase {
 public:
   ControllerBase(){};
 
-  void initialize(rclcpp::Node* node_ptr) {
+  void initialize(as2::Node::SharedPtr node_ptr) {
     node_ptr_ = node_ptr;
     ownInitialize();
   };
@@ -75,7 +76,7 @@ public:
   virtual ~ControllerBase(){};
 
 protected:
-  rclcpp::Node* node_ptr_;
+  as2::Node::SharedPtr node_ptr_;
 
 };  //  ControllerBase
 

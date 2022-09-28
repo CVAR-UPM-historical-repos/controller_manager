@@ -63,7 +63,7 @@ ControllerManager::ControllerManager() : as2::Node("controller_manager") {
       "controller_plugin_base", "controller_plugin_base::ControllerBase");
   try {
     controller_ = loader_->createSharedInstance(plugin_name_);
-    controller_->initialize(this);
+    controller_->initialize(this->as2_node_shared_from_this());
     controller_handler_ =
         std::make_shared<ControllerHandler>(controller_, as2_node_shared_from_this());
     RCLCPP_INFO(this->get_logger(), "PLUGIN LOADED [%s]", plugin_name_.c_str());

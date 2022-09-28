@@ -93,11 +93,11 @@ ControllerHandler::ControllerHandler(
 
   set_control_mode_client_ =
       std::make_shared<as2::SynchronousServiceClient<as2_msgs::srv::SetControlMode>>(
-          as2_names::services::platform::set_platform_control_mode);
+          as2_names::services::platform::set_platform_control_mode, node_ptr_);
 
   list_control_modes_client_ =
       std::make_shared<as2::SynchronousServiceClient<as2_msgs::srv::ListControlModes>>(
-          as2_names::services::platform::list_control_modes);
+          as2_names::services::platform::list_control_modes, node_ptr_);
 
   pose_pub_ = node_ptr_->create_publisher<geometry_msgs::msg::PoseStamped>(
       as2_names::topics::actuator_command::pose, as2_names::topics::actuator_command::qos);
