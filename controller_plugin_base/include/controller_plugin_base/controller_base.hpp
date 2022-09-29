@@ -53,7 +53,7 @@ class ControllerBase {
 public:
   ControllerBase(){};
 
-  void initialize(as2::Node::SharedPtr node_ptr) {
+  void initialize(as2::Node* node_ptr) {
     node_ptr_ = node_ptr;
     ownInitialize();
   };
@@ -76,7 +76,7 @@ public:
   virtual ~ControllerBase(){};
 
 protected:
-  as2::Node::SharedPtr node_ptr_;
+  as2::Node* node_ptr_;
 
 };  //  ControllerBase
 
