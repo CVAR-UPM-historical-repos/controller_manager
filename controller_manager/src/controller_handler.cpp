@@ -62,7 +62,7 @@ ControllerHandler::ControllerHandler(
     std::shared_ptr<controller_plugin_base::ControllerBase> controller,
     as2::Node *node)
     : controller_ptr_(controller), node_ptr_(node), tf_handler_(node) {
-  node_ptr_->declare_parameter<bool>("use_bypass", false);
+  node_ptr_->declare_parameter<bool>("use_bypass", true);
   node_ptr_->declare_parameter<std::string>("odom_frame_id", "odom");
   node_ptr_->declare_parameter<std::string>("base_frame_id", "base_link");
 
