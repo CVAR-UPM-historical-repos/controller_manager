@@ -122,7 +122,7 @@ private:
 
 public:
   ControllerHandler(std::shared_ptr<controller_plugin_base::ControllerBase> controller,
-                    std::shared_ptr<as2::Node> node);
+                    as2::Node* node);
 
   bool use_bypass_        = false;
   bool bypass_controller_ = false;
@@ -144,7 +144,7 @@ public:
   virtual ~ControllerHandler(){};
 
 protected:
-  std::shared_ptr<as2::Node> node_ptr_;
+  as2::Node* node_ptr_;
 
 private:
   void state_callback(const geometry_msgs::msg::TwistStamped twist_msg);

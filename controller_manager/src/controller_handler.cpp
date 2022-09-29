@@ -60,8 +60,8 @@ static uint8_t findBestMatchWithMask(const uint8_t mode,
 
 ControllerHandler::ControllerHandler(
     std::shared_ptr<controller_plugin_base::ControllerBase> controller,
-    std::shared_ptr<as2::Node> node)
-    : controller_ptr_(controller), node_ptr_(node), tf_handler_(node->as2_node_shared_from_this()) {
+    as2::Node *node)
+    : controller_ptr_(controller), node_ptr_(node), tf_handler_(node) {
   node_ptr_->declare_parameter<bool>("use_bypass", false);
   node_ptr_->declare_parameter<std::string>("odom_frame_id", "odom");
   node_ptr_->declare_parameter<std::string>("base_frame_id", "base_link");

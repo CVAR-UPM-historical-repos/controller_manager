@@ -63,9 +63,8 @@ ControllerManager::ControllerManager() : as2::Node("controller_manager") {
       "controller_plugin_base", "controller_plugin_base::ControllerBase");
   try {
     controller_ = loader_->createSharedInstance(plugin_name_);
-    controller_->initialize(this->as2_node_shared_from_this());
-    controller_handler_ =
-        std::make_shared<ControllerHandler>(controller_, as2_node_shared_from_this());
+    controller_->initialize(this);
+    controller_handler_ = std::make_shared<ControllerHandler>(controller_, this);
     RCLCPP_INFO(this->get_logger(), "PLUGIN LOADED [%s]", plugin_name_.c_str());
   } catch (pluginlib::PluginlibException& ex) {
     RCLCPP_ERROR(this->get_logger(), "The plugin failed to load for some reason. Error: %s\n",
