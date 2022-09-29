@@ -46,8 +46,7 @@ ControllerManager::ControllerManager() : as2::Node("controller_manager") {
                  e.what());
     this->~ControllerManager();
   }
-  this->declare_parameter<bool>("use_bypass",
-                                true);  // DECLARED, READ ON PLUGIN_BASE
+  
   this->declare_parameter<std::filesystem::path>("plugin_config_file",
                                                  "");  // ONLY DECLARED, USED IN LAUNCH
   this->declare_parameter<std::filesystem::path>("plugin_available_modes_config_file", "");
@@ -62,15 +61,17 @@ ControllerManager::ControllerManager() : as2::Node("controller_manager") {
   loader_ = std::make_shared<pluginlib::ClassLoader<controller_plugin_base::ControllerBase>>(
       "controller_plugin_base", "controller_plugin_base::ControllerBase");
   try {
-    controller_         = loader_->createSharedInstance(plugin_name_);
-    controller_handler_ = std::make_shared<ControllerHandler>(controller_);
+    controller_ = loader_->createSharedInstance(plugin_name_);
+    controller_->initialize(this);
+    controller_handler_ = std::make_shared<ControllerHandler>(controller_, this);
     RCLCPP_INFO(this->get_logger(), "PLUGIN LOADED [%s]", plugin_name_.c_str());
   } catch (pluginlib::PluginlibException& ex) {
     RCLCPP_ERROR(this->get_logger(), "The plugin failed to load for some reason. Error: %s\n",
                  ex.what());
+    return;
   }
 
-  controller_handler_->initialize(this);
+  // controller_handler_->initialize(this);
   if (available_modes_config_file_.empty()) {
     available_modes_config_file_ = loader_->getPluginManifestPath(plugin_name_);
   }
@@ -89,18 +90,21 @@ ControllerManager::ControllerManager() : as2::Node("controller_manager") {
 ControllerManager::~ControllerManager(){};
 
 void ControllerManager::config_available_control_modes(const std::filesystem::path project_path) {
-  auto available_input_modes = as2::parse_uint_from_string(
-      as2::find_tag_from_project_exports_path<std::string>(project_path, "input_control_modes"));
+  auto available_input_modes =
+      as2::yaml::parse_uint_from_string(as2::yaml::find_tag_from_project_exports_path<std::string>(
+          project_path, "input_control_modes"));
   RCLCPP_INFO(this->get_logger(), "==========================================================");
   RCLCPP_INFO(this->get_logger(), "AVAILABLE INPUT MODES: ");
   for (auto mode : available_input_modes) {
-    RCLCPP_INFO(this->get_logger(), "\t - %s", as2::controlModeToString(mode).c_str());
+    RCLCPP_INFO(this->get_logger(), "\t - %s",
+                as2::control_mode::controlModeToString(mode).c_str());
   }
-  auto available_output_modes = as2::parse_uint_from_string(
-      as2::find_tag_from_project_exports_path<std::string>(project_path, "output_control_modes"));
+  auto available_output_modes =
+      as2::yaml::parse_uint_from_string(as2::yaml::find_tag_from_project_exports_path<std::string>(
+          project_path, "output_control_modes"));
   RCLCPP_INFO(this->get_logger(), "AVAILABLE OUTPUT MODES: ");
   for (auto mode : available_output_modes) {
-    RCLCPP_INFO(this->get_logger(), "\t -%s", as2::controlModeToString(mode).c_str());
+    RCLCPP_INFO(this->get_logger(), "\t -%s", as2::control_mode::controlModeToString(mode).c_str());
   }
 
   RCLCPP_INFO(this->get_logger(), "==========================================================");

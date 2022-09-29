@@ -28,6 +28,9 @@ set(PROJECT_DEPENDENCIES
   geometry_msgs
   nav_msgs
   trajectory_msgs
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
 )
 
 include_directories(
