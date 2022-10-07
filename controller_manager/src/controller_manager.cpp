@@ -36,24 +36,27 @@
 
 #include "controller_manager/controller_manager.hpp"
 
-ControllerManager::ControllerManager() : as2::Node("controller_manager") {
-  this->declare_parameter<double>("publish_cmd_freq", 100.0);
-  this->declare_parameter<double>("publish_info_freq", 10.0);
+ControllerManager::ControllerManager()
+    : as2::Node("controller_manager",
+                rclcpp::NodeOptions()
+                    .allow_undeclared_parameters(true)
+                    .automatically_declare_parameters_from_overrides(true)) {
+  /* this->declare_parameter<double>("publish_cmd_freq", 100.0);
+  this->declare_parameter<double>("publish_info_freq", 10.0); */
   try {
-    this->declare_parameter<std::string>("plugin_name");
+    this->get_parameter("plugin_name", plugin_name_);
   } catch (const rclcpp::ParameterTypeException& e) {
     RCLCPP_FATAL(this->get_logger(), "Launch argument <plugin_name> not defined or malformed: %s",
                  e.what());
     this->~ControllerManager();
   }
-  
-  this->declare_parameter<std::filesystem::path>("plugin_config_file",
+
+  /* this->declare_parameter<std::filesystem::path>("plugin_config_file",
                                                  "");  // ONLY DECLARED, USED IN LAUNCH
-  this->declare_parameter<std::filesystem::path>("plugin_available_modes_config_file", "");
+  this->declare_parameter<std::filesystem::path>("plugin_available_modes_config_file", ""); */
 
   this->get_parameter("publish_cmd_freq", cmd_freq_);
   this->get_parameter("publish_info_freq", info_freq_);
-  this->get_parameter("plugin_name", plugin_name_);
   plugin_name_ += "::Plugin";
   // this->get_parameter("plugin_config_file", parameter_string_);
   this->get_parameter("plugin_available_modes_config_file", available_modes_config_file_);
@@ -63,6 +66,7 @@ ControllerManager::ControllerManager() : as2::Node("controller_manager") {
   try {
     controller_ = loader_->createSharedInstance(plugin_name_);
     controller_->initialize(this);
+    controller_->updateParams(this->list_parameters({}, 0).names);
     controller_handler_ = std::make_shared<ControllerHandler>(controller_, this);
     RCLCPP_INFO(this->get_logger(), "PLUGIN LOADED [%s]", plugin_name_.c_str());
   } catch (pluginlib::PluginlibException& ex) {

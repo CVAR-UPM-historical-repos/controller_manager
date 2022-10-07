@@ -62,9 +62,9 @@ ControllerHandler::ControllerHandler(
     std::shared_ptr<controller_plugin_base::ControllerBase> controller,
     as2::Node *node)
     : controller_ptr_(controller), node_ptr_(node), tf_handler_(node) {
-  node_ptr_->declare_parameter<bool>("use_bypass", true);
+  /* node_ptr_->declare_parameter<bool>("use_bypass", true);
   node_ptr_->declare_parameter<std::string>("odom_frame_id", "odom");
-  node_ptr_->declare_parameter<std::string>("base_frame_id", "base_link");
+  node_ptr_->declare_parameter<std::string>("base_frame_id", "base_link"); */
 
   node_ptr_->get_parameter("use_bypass", use_bypass_);
   node_ptr_->get_parameter("odom_frame_id", odom_frame_id_);
@@ -402,7 +402,6 @@ void ControllerHandler::sendCommand() {
     if (!motion_reference_adquired_) {
       auto &clock = *node_ptr_->get_clock();
       RCLCPP_INFO_THROTTLE(node_ptr_->get_logger(), clock, 1000, "Waiting for motion reference");
-
       return;
     }
     pose_pub_->publish(ref_pose_);
