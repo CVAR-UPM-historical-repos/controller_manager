@@ -297,6 +297,9 @@ bool ControllerHandler::findSuitableOutputControlModeForPlatformInputMode(
       continue;
     }
     common_mode = findBestMatchWithMask(mode_out, platform_available_modes_in_, MATCH_ALL);
+    if (common_mode) {
+      break;
+    }
   }
 
   // check if the common mode exist
