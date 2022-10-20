@@ -104,7 +104,7 @@ ControllerHandler::ControllerHandler(
 
   using namespace std::chrono_literals;
   // FIXME: Hardcoded timer period
-  control_timer_ = node_ptr_->create_wall_timer(
+  control_timer_ = node_ptr_->create_timer(
       10ms, std::bind(&ControllerHandler::control_timer_callback, this));
 
   set_control_mode_srv_ = node_ptr_->create_service<as2_msgs::srv::SetControlMode>(
