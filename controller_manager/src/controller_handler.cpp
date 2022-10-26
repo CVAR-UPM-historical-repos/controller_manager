@@ -397,6 +397,7 @@ void ControllerHandler::setControlModeSrvCall(
   }
   state_adquired_            = false;
   motion_reference_adquired_ = false;
+  last_time_ = node_ptr_->now();
   return;
 }
 
@@ -411,10 +412,23 @@ void ControllerHandler::sendCommand() {
     twist_pub_->publish(ref_twist_);
     return;
   }
+
+  rclcpp::Time current_time = node_ptr_->now();
+  double dt                 = (current_time - last_time_).nanoseconds() / 1.0e9;
+  last_time_                = current_time;
+  if (dt <= 0) {
+    auto &clk = *node_ptr_->get_clock();
+    RCLCPP_WARN_THROTTLE(node_ptr_->get_logger(), clk, 1000,
+                         "Loop delta time is zero. Check your clock");
+    return;
+  }
+
   geometry_msgs::msg::PoseStamped pose;
   geometry_msgs::msg::TwistStamped twist;
   as2_msgs::msg::Thrust thrust;
-  controller_ptr_->computeOutput(pose, twist, thrust);
+  if (!controller_ptr_->computeOutput(dt, pose, twist, thrust)) {
+    return;
+  }
 
   // set time stamp
   pose.header.stamp  = node_ptr_->now();

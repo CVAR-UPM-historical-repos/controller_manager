@@ -111,7 +111,8 @@ public:
    * frame will depend on the output control mode
    * @param thrust as2_msgs::msg::Thrust message with the output thrust of the robot
    */
-  virtual void computeOutput(geometry_msgs::msg::PoseStamped& pose,
+  virtual bool computeOutput(const double& dt,
+                             geometry_msgs::msg::PoseStamped& pose,
                              geometry_msgs::msg::TwistStamped& twist,
                              as2_msgs::msg::Thrust& thrust) = 0;
   /*

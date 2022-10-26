@@ -147,6 +147,8 @@ protected:
   as2::Node* node_ptr_;
 
 private:
+  rclcpp::Time last_time_;
+  
   void state_callback(const geometry_msgs::msg::TwistStamped twist_msg);
   void ref_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
   void ref_twist_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
