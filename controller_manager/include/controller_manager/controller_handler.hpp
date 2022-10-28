@@ -74,6 +74,7 @@
 #define MATCH_ALL 0b11111111
 #define MATCH_MODE_AND_FRAME 0b11110011
 #define MATCH_MODE 0b11110000
+#define MATCH_MODE_AND_YAW 0b11111100
 
 #define UNSET_MODE_MASK 0b00000000
 #define HOVER_MODE_MASK 0b00010000
@@ -84,8 +85,17 @@ private:
   std::vector<uint8_t> controller_available_modes_out_;
   std::vector<uint8_t> platform_available_modes_in_;
 
-  std::string odom_frame_id_ = "odom";
-  std::string base_frame_id_ = "base_link";
+  std::string enu_frame_id_ = "odom";
+  std::string flu_frame_id_ = "base_link";
+
+  std::string state_pose_frame_id_  = "odom";
+  std::string state_twist_frame_id_ = "odom";
+
+  std::string reference_pose_frame_id_  = "odom";
+  std::string reference_twist_frame_id_ = "odom";
+
+  std::string output_pose_frame_id_  = "odom";
+  std::string output_twist_frame_id_ = "odom";
 
   as2::tf::TfHandler tf_handler_;
 
@@ -113,8 +123,8 @@ private:
   bool motion_reference_adquired_ = false;
   bool state_adquired_            = false;
 
-  as2_msgs::msg::ControlMode input_mode_;
-  as2_msgs::msg::ControlMode output_mode_;
+  as2_msgs::msg::ControlMode control_mode_in_;
+  as2_msgs::msg::ControlMode control_mode_out_;
 
   uint8_t prefered_output_mode_ = 0b00000000;  // by default, no output mode is prefered
 
@@ -124,10 +134,13 @@ public:
   ControllerHandler(std::shared_ptr<controller_plugin_base::ControllerBase> controller,
                     as2::Node* node);
 
+  rcl_interfaces::msg::SetParametersResult parametersCallback(
+      const std::vector<rclcpp::Parameter>& parameters);
+
   bool use_bypass_        = false;
   bool bypass_controller_ = false;
 
-  as2_msgs::msg::ControlMode getMode() { return this->input_mode_; };
+  as2_msgs::msg::ControlMode getMode() { return this->control_mode_in_; };
 
   void setInputControlModesAvailables(const std::vector<uint8_t>& available_modes) {
     controller_available_modes_in_ = available_modes;
@@ -148,18 +161,25 @@ protected:
 
 private:
   rclcpp::Time last_time_;
-  
+
+  bool convertPoseStamped(const std::string& frame_id, geometry_msgs::msg::PoseStamped pose);
+
+  bool convertTwistStamped(const std::string& frame_id, geometry_msgs::msg::TwistStamped pose);
+
   void state_callback(const geometry_msgs::msg::TwistStamped twist_msg);
   void ref_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
   void ref_twist_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
   void ref_traj_callback(const trajectory_msgs::msg::JointTrajectoryPoint::SharedPtr msg);
   void platform_info_callback(const as2_msgs::msg::PlatformInfo::SharedPtr msg);
 
-  geometry_msgs::msg::PoseStamped pose_;
-  geometry_msgs::msg::TwistStamped twist_;
+  geometry_msgs::msg::PoseStamped state_pose_;
+  geometry_msgs::msg::TwistStamped state_twist_;
   geometry_msgs::msg::PoseStamped ref_pose_;
   geometry_msgs::msg::TwistStamped ref_twist_;
   trajectory_msgs::msg::JointTrajectoryPoint ref_traj_;
+  geometry_msgs::msg::PoseStamped command_pose_;
+  geometry_msgs::msg::TwistStamped command_twist_;
+  as2_msgs::msg::Thrust command_thrust_;
 
   void control_timer_callback();
   void setControlModeSrvCall(const as2_msgs::srv::SetControlMode::Request::SharedPtr request,
@@ -172,6 +192,10 @@ private:
   bool checkSuitabilityInputMode(const uint8_t input_mode, const uint8_t output_mode);
   void sendCommand();
   bool setPlatformControlMode(const as2_msgs::msg::ControlMode& mode);
+
+  void reset();
+
+  void publishCommand();
 
 };  //  ControllerBase
 

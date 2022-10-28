@@ -138,6 +138,23 @@ public:
   virtual void reset() = 0;
 
   /*
+   * @brief Check if the controller plugin is ready for computing the output
+   */
+  virtual bool isReady() { return true; };
+
+  /*
+   * @brief Get the desired frame_id of the state and reference pose msgs
+   * By default it is "odom"
+   */
+  virtual std::string getDesiredPoseFrameId() { return "odom"; }
+
+  /*
+   * @brief Get the desired frame_id of the state and reference twist msgs
+   * By default it is "base_link"
+   */
+  virtual std::string getDesiredTwistFrameId() { return "base_link"; }
+
+  /*
    * @brief Destructor
    */
   virtual ~ControllerBase(){};

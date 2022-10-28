@@ -67,8 +67,8 @@ ControllerHandler::ControllerHandler(
   node_ptr_->declare_parameter<std::string>("base_frame_id", "base_link"); */
 
   node_ptr_->get_parameter("use_bypass", use_bypass_);
-  node_ptr_->get_parameter("odom_frame_id", odom_frame_id_);
-  node_ptr_->get_parameter("base_frame_id", base_frame_id_);
+  node_ptr_->get_parameter("odom_frame_id", enu_frame_id_);
+  node_ptr_->get_parameter("base_frame_id", flu_frame_id_);
 
   ref_pose_sub_ = node_ptr_->create_subscription<geometry_msgs::msg::PoseStamped>(
       as2_names::topics::motion_reference::pose, as2_names::topics::motion_reference::qos,
@@ -102,10 +102,13 @@ ControllerHandler::ControllerHandler(
   thrust_pub_ = node_ptr_->create_publisher<as2_msgs::msg::Thrust>(
       as2_names::topics::actuator_command::thrust, as2_names::topics::actuator_command::qos);
 
+  static auto parameters_callback_handle_ = node_ptr_->add_on_set_parameters_callback(
+      std::bind(&ControllerHandler::parametersCallback, this, std::placeholders::_1));
+
   using namespace std::chrono_literals;
   // FIXME: Hardcoded timer period
-  control_timer_ = node_ptr_->create_timer(
-      10ms, std::bind(&ControllerHandler::control_timer_callback, this));
+  control_timer_ =
+      node_ptr_->create_timer(10ms, std::bind(&ControllerHandler::control_timer_callback, this));
 
   set_control_mode_srv_ = node_ptr_->create_service<as2_msgs::srv::SetControlMode>(
       as2_names::services::controller::set_control_mode,
@@ -114,52 +117,107 @@ ControllerHandler::ControllerHandler(
                 std::placeholders::_2   // Corresponds to the 'response' input
                 ));
 
-  input_mode_.control_mode  = as2_msgs::msg::ControlMode::UNSET;
-  output_mode_.control_mode = as2_msgs::msg::ControlMode::UNSET;
+  control_mode_in_.control_mode  = as2_msgs::msg::ControlMode::UNSET;
+  control_mode_out_.control_mode = as2_msgs::msg::ControlMode::UNSET;
+}
+
+rcl_interfaces::msg::SetParametersResult ControllerHandler::parametersCallback(
+    const std::vector<rclcpp::Parameter> &parameters) {
+  rcl_interfaces::msg::SetParametersResult result;
+  result.successful = true;
+  result.reason     = "success";
+  std::vector<std::string> changed_parameters(parameters.size());
+  for (auto &param : parameters) {
+    changed_parameters.push_back(param.get_name());
+  }
+  if (!controller_ptr_->updateParams(changed_parameters)) {
+    result.successful = false;
+    result.reason     = "Failed to update controller parameters";
+  }
+  return result;
+}
+
+void ControllerHandler::reset() {
+  controller_ptr_->reset();
+  last_time_                 = node_ptr_->now();
+  state_adquired_            = false;
+  motion_reference_adquired_ = false;
+}
+
+bool ControllerHandler::convertPoseStamped(const std::string &frame_id,
+                                           geometry_msgs::msg::PoseStamped pose) {
+  if (frame_id == "" || pose.header.frame_id == "") {
+    RCLCPP_ERROR(node_ptr_->get_logger(), "Could not convert from frame %s to frame %s",
+                 pose.header.frame_id.c_str(), frame_id.c_str());
+    return false;
+  }
+  try {
+    pose = tf_handler_.convert(pose, frame_id);
+    return true;
+  } catch (tf2::TransformException &ex) {
+    RCLCPP_WARN(node_ptr_->get_logger(), "Could not get transform: %s", ex.what());
+    return false;
+  }
+  return false;
+}
+
+bool ControllerHandler::convertTwistStamped(const std::string &frame_id,
+                                            geometry_msgs::msg::TwistStamped twist) {
+  if (frame_id == "" || twist.header.frame_id == "") {
+    RCLCPP_ERROR(node_ptr_->get_logger(), "Could not convert from frame %s to frame %s",
+                 twist.header.frame_id.c_str(), frame_id.c_str());
+    return false;
+  }
+  try {
+    twist = tf_handler_.convert(twist, frame_id);
+    return true;
+  } catch (tf2::TransformException &ex) {
+    RCLCPP_WARN(node_ptr_->get_logger(), "Could not get transform: %s", ex.what());
+    return false;
+  }
+  return false;
 }
 
 void ControllerHandler::state_callback(const geometry_msgs::msg::TwistStamped _twist_msg) {
   geometry_msgs::msg::PoseStamped pose_msg;
-  geometry_msgs::msg::TwistStamped twist_msg;
+  if (!convertTwistStamped(state_twist_frame_id_, _twist_msg)) {
+    return;
+  }
   try {
-    // obtain transform from world to base_link
-    pose_msg  = tf_handler_.getPoseStamped(odom_frame_id_, base_frame_id_,
-                                           tf2_ros::fromMsg(_twist_msg.header.stamp));
-    twist_msg = tf_handler_.convert(_twist_msg, odom_frame_id_);
-
+    pose_msg = tf_handler_.getPoseStamped(enu_frame_id_, flu_frame_id_,
+                                          tf2_ros::fromMsg(_twist_msg.header.stamp));
   } catch (tf2::TransformException &ex) {
-    RCLCPP_WARN(node_ptr_->get_logger(), "Could not get transform: %s", ex.what());
+    RCLCPP_WARN(node_ptr_->get_logger(), "Could not get state pose transform: %s", ex.what());
     return;
   }
   state_adquired_ = true;
-  pose_           = pose_msg;
-  twist_          = twist_msg;
-  if (!bypass_controller_) controller_ptr_->updateState(pose_, twist_);
+  state_pose_     = pose_msg;
+  state_twist_    = _twist_msg;
+
+  if (!bypass_controller_) controller_ptr_->updateState(state_pose_, state_twist_);
 }
 
 void ControllerHandler::ref_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
-  motion_reference_adquired_ = true;
-  try {
-    // obtain transform to odom frame
-    ref_pose_ = tf_handler_.convert(*msg, odom_frame_id_);
-
-  } catch (tf2::TransformException &ex) {
-    RCLCPP_WARN(node_ptr_->get_logger(), "Ref pose Cb : Could not get transform: %s", ex.what());
+  geometry_msgs::msg::PoseStamped pose_msg = *msg;
+  if (!convertPoseStamped(reference_pose_frame_id_, pose_msg)) {
+    RCLCPP_INFO(node_ptr_->get_logger(), "Ref could not get transform from %s to %s",
+                pose_msg.header.frame_id.c_str(), reference_pose_frame_id_.c_str());
     return;
   }
+  ref_pose_                  = pose_msg;
+  motion_reference_adquired_ = true;
   if (!bypass_controller_) controller_ptr_->updateReference(ref_pose_);
 }
 
 void ControllerHandler::ref_twist_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
-  motion_reference_adquired_ = true;
-  try {
-    // obtain transform to odom frame
-    ref_twist_ = tf_handler_.convert(*msg, odom_frame_id_);
-
-  } catch (tf2::TransformException &ex) {
-    RCLCPP_WARN(node_ptr_->get_logger(), "Ref twist Cb : Could not get transform: %s", ex.what());
+  geometry_msgs::msg::TwistStamped twist_msg = *msg;
+  if (!convertTwistStamped(reference_twist_frame_id_, twist_msg)) {
+    RCLCPP_INFO(node_ptr_->get_logger(), "Ref twist could not get transform from %s to %s",
+                twist_msg.header.frame_id.c_str(), reference_twist_frame_id_.c_str());
     return;
   }
+  ref_twist_                 = twist_msg;
+  motion_reference_adquired_ = true;
   if (!bypass_controller_) controller_ptr_->updateReference(ref_twist_);
 }
 
@@ -241,7 +299,7 @@ bool ControllerHandler::tryToBypassController(const uint8_t input_mode, uint8_t 
   }
 
   uint8_t candidate_mode =
-      findBestMatchWithMask(input_mode, platform_available_modes_in_, MATCH_ALL);
+      findBestMatchWithMask(input_mode, platform_available_modes_in_, MATCH_MODE_AND_YAW);
   if (candidate_mode) {
     output_mode = candidate_mode;
     return true;
@@ -279,7 +337,7 @@ bool ControllerHandler::findSuitableOutputControlModeForPlatformInputMode(
   //  check if the prefered mode is available
   if (prefered_output_mode_) {
     auto match =
-        findBestMatchWithMask(prefered_output_mode_, platform_available_modes_in_, MATCH_ALL);
+        findBestMatchWithMask(prefered_output_mode_, platform_available_modes_in_, MATCH_MODE_AND_YAW);
     if (match) {
       output_mode = match;
       return true;
@@ -314,19 +372,21 @@ void ControllerHandler::setControlModeSrvCall(
     const as2_msgs::srv::SetControlMode::Request::SharedPtr request,
     as2_msgs::srv::SetControlMode::Response::SharedPtr response) {
   control_mode_established_ = false;
-  // input_control_mode_desired
+
+  // check if platform_available_modes is set
+  if (!listPlatformAvailableControlModes()) {
+    response->success = false;
+    return;
+  }
+
+  // If the input mode is Hover, set desired control mode in to Hover,
+  // else, set desired control mode in to the request one
   uint8_t input_control_mode_desired = 0;
   if (request->control_mode.control_mode == as2_msgs::msg::ControlMode::HOVER) {
     input_control_mode_desired = HOVER_MODE_MASK;
   } else {
     input_control_mode_desired =
         as2::control_mode::convertAS2ControlModeToUint8t(request->control_mode);
-  }
-
-  // check if platform_available_modes is set
-  if (!listPlatformAvailableControlModes()) {
-    response->success = false;
-    return;
   }
 
   // 1st: check if a bypass is possible for the input_control_mode_desired ( DISCARDING YAW
@@ -368,36 +428,30 @@ void ControllerHandler::setControlModeSrvCall(
     return;
   }
 
-  input_mode_  = request->control_mode;
-  output_mode_ = mode_to_request;
+  control_mode_in_  = request->control_mode;
+  control_mode_out_ = mode_to_request;
+
+  RCLCPP_INFO(node_ptr_->get_logger(), "input_mode:[%s]",
+              as2::control_mode::controlModeToString(control_mode_in_).c_str());
+  RCLCPP_INFO(node_ptr_->get_logger(), "output_mode:[%s]",
+              as2::control_mode::controlModeToString(control_mode_out_).c_str());
 
   if (bypass_controller_) {
     RCLCPP_INFO(node_ptr_->get_logger(), "Bypassing controller:");
-    RCLCPP_INFO(node_ptr_->get_logger(), "input_mode:[%s]",
-                as2::control_mode::controlModeToString(input_mode_).c_str());
-    RCLCPP_INFO(node_ptr_->get_logger(), "output_mode:[%s]",
-                as2::control_mode::controlModeToString(output_mode_).c_str());
-    as2::control_mode::printControlMode(output_mode_);
-    auto unset_mode           = as2::control_mode::convertUint8tToAS2ControlMode(UNSET_MODE_MASK);
-    response->success         = controller_ptr_->setMode(unset_mode, unset_mode);
-    control_mode_established_ = response->success;
-    return;
+    as2::control_mode::printControlMode(control_mode_out_);
+    auto unset_mode   = as2::control_mode::convertUint8tToAS2ControlMode(UNSET_MODE_MASK);
+    response->success = controller_ptr_->setMode(unset_mode, unset_mode);
+  } else {
+    response->success = controller_ptr_->setMode(control_mode_in_, control_mode_out_);
   }
-
-  RCLCPP_INFO(node_ptr_->get_logger(), "input_mode:[%s]",
-              as2::control_mode::controlModeToString(input_mode_).c_str());
-  RCLCPP_INFO(node_ptr_->get_logger(), "output_mode:[%s]",
-              as2::control_mode::controlModeToString(output_mode_).c_str());
-
-  response->success         = controller_ptr_->setMode(input_mode_, output_mode_);
-  control_mode_established_ = response->success;
 
   if (!response->success) {
     RCLCPP_ERROR(node_ptr_->get_logger(), "Failed to set control mode in the controller");
   }
-  state_adquired_            = false;
-  motion_reference_adquired_ = false;
-  last_time_ = node_ptr_->now();
+
+  control_mode_established_ = response->success;
+
+  reset();
   return;
 }
 
@@ -408,34 +462,72 @@ void ControllerHandler::sendCommand() {
       RCLCPP_INFO_THROTTLE(node_ptr_->get_logger(), clock, 1000, "Waiting for motion reference");
       return;
     }
-    pose_pub_->publish(ref_pose_);
-    twist_pub_->publish(ref_twist_);
+    command_pose_  = ref_pose_;
+    command_twist_ = ref_twist_;
+  } else {
+    if (!controller_ptr_->isReady()) {
+      auto &clock = *node_ptr_->get_clock();
+      RCLCPP_INFO_THROTTLE(node_ptr_->get_logger(), clock, 1000, "Waiting for controller plugin");
+      return;
+    }
+
+    rclcpp::Time current_time = node_ptr_->now();
+    double dt                 = (current_time - last_time_).nanoseconds() / 1.0e9;
+    if (dt <= 0) {
+      auto &clk = *node_ptr_->get_clock();
+      RCLCPP_WARN_THROTTLE(node_ptr_->get_logger(), clk, 1000,
+                           "Loop delta time is zero or below. Check your clock");
+      return;
+    }
+
+    last_time_ = current_time;
+    if (!controller_ptr_->computeOutput(dt, command_pose_, command_twist_, command_thrust_)) {
+      return;
+    }
+  }
+
+  publishCommand();
+  return;
+}
+
+void ControllerHandler::publishCommand() {
+  command_pose_.header.stamp  = node_ptr_->now();
+  command_twist_.header.stamp = command_pose_.header.stamp;
+
+  if (!convertPoseStamped(output_pose_frame_id_, command_pose_)) {
+    RCLCPP_ERROR(node_ptr_->get_logger(),
+                 "Failed to convert command pose to output frame, from %s to %s",
+                 command_pose_.header.frame_id.c_str(), output_pose_frame_id_.c_str());
+    return;
+  }
+  if (!convertTwistStamped(output_twist_frame_id_, command_twist_)) {
+    RCLCPP_ERROR(node_ptr_->get_logger(),
+                 "Failed to convert command twist to output frame, from %s to %s",
+                 command_twist_.header.frame_id.c_str(), output_twist_frame_id_.c_str());
     return;
   }
 
-  rclcpp::Time current_time = node_ptr_->now();
-  double dt                 = (current_time - last_time_).nanoseconds() / 1.0e9;
-  last_time_                = current_time;
-  if (dt <= 0) {
-    auto &clk = *node_ptr_->get_clock();
-    RCLCPP_WARN_THROTTLE(node_ptr_->get_logger(), clk, 1000,
-                         "Loop delta time is zero. Check your clock");
-    return;
+  switch (control_mode_out_.control_mode) {
+    case as2_msgs::msg::ControlMode::POSITION:
+      pose_pub_->publish(command_pose_);
+      break;
+    case as2_msgs::msg::ControlMode::SPEED:
+      twist_pub_->publish(command_twist_);
+      break;
+    case as2_msgs::msg::ControlMode::SPEED_IN_A_PLANE:
+    case as2_msgs::msg::ControlMode::TRAJECTORY:
+      pose_pub_->publish(command_pose_);
+      twist_pub_->publish(command_twist_);
+      break;
+    case as2_msgs::msg::ControlMode::ATTITUDE:
+      command_thrust_.header = command_pose_.header;
+      pose_pub_->publish(command_pose_);
+      thrust_pub_->publish(command_thrust_);
+      break;
+    case as2_msgs::msg::ControlMode::ACRO:
+      command_thrust_.header = command_pose_.header;
+      twist_pub_->publish(command_twist_);
+      thrust_pub_->publish(command_thrust_);
+      break;
   }
-
-  geometry_msgs::msg::PoseStamped pose;
-  geometry_msgs::msg::TwistStamped twist;
-  as2_msgs::msg::Thrust thrust;
-  if (!controller_ptr_->computeOutput(dt, pose, twist, thrust)) {
-    return;
-  }
-
-  // set time stamp
-  pose.header.stamp  = node_ptr_->now();
-  twist.header.stamp = pose.header.stamp;
-  thrust.header      = pose.header;
-
-  pose_pub_->publish(pose);
-  twist_pub_->publish(twist);
-  thrust_pub_->publish(thrust);
-};
+}

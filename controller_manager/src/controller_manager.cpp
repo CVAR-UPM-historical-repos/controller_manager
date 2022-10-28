@@ -66,6 +66,7 @@ ControllerManager::ControllerManager()
   try {
     controller_ = loader_->createSharedInstance(plugin_name_);
     controller_->initialize(this);
+    controller_->reset();
     controller_->updateParams(this->list_parameters({}, 0).names);
     controller_handler_ = std::make_shared<ControllerHandler>(controller_, this);
     RCLCPP_INFO(this->get_logger(), "PLUGIN LOADED [%s]", plugin_name_.c_str());
