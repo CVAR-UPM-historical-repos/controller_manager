@@ -8,11 +8,11 @@ if(NOT CMAKE_CXX_STANDARD)
 endif()
 
 # set Release as default
-if (NOT CMAKE_BUILD_TYPE)
+if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-#set fPIC to ON by default
+# set fPIC to ON by default
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # find dependencies
@@ -44,25 +44,22 @@ endforeach()
 
 add_executable(${PROJECT_NAME}_node src/controller_manager_node.cpp src/controller_manager.cpp src/controller_handler.cpp)
 target_link_libraries(${PROJECT_NAME}_node yaml-cpp)
-target_include_directories(${PROJECT_NAME}_node 
+target_include_directories(${PROJECT_NAME}_node
   PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
 ament_target_dependencies(${PROJECT_NAME}_node ${PROJECT_DEPENDENCIES})
 
-
 if(BUILD_TESTING)
-
   find_package(ament_cmake_cppcheck REQUIRED)
   find_package(ament_cmake_clang_format REQUIRED)
-  
+
   ament_cppcheck(src/ include/ tests/)
   ament_clang_format(src/ include/ tests/ --config ${CMAKE_CURRENT_SOURCE_DIR}/.clang-format)
 
-  # include(tests/profiling_cmake.txt)
-  # include(tests/unit_test.cmake)
+  include(tests/profiling_cmake.txt)
+  include(tests/unit_test.cmake)
 endif()
-
 
 install(DIRECTORY
   launch

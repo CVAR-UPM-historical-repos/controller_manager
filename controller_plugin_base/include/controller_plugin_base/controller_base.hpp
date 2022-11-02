@@ -111,7 +111,7 @@ public:
    * frame will depend on the output control mode
    * @param thrust as2_msgs::msg::Thrust message with the output thrust of the robot
    */
-  virtual bool computeOutput(const double& dt,
+  virtual bool computeOutput(double dt,
                              geometry_msgs::msg::PoseStamped& pose,
                              geometry_msgs::msg::TwistStamped& twist,
                              as2_msgs::msg::Thrust& thrust) = 0;
@@ -136,11 +136,6 @@ public:
    * @brief Reset the internal state of the controller plugin
    */
   virtual void reset() = 0;
-
-  /*
-   * @brief Check if the controller plugin is ready for computing the output
-   */
-  virtual bool isReady() { return true; };
 
   /*
    * @brief Get the desired frame_id of the state and reference pose msgs

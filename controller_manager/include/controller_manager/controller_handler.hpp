@@ -88,11 +88,8 @@ private:
   std::string enu_frame_id_ = "odom";
   std::string flu_frame_id_ = "base_link";
 
-  std::string state_pose_frame_id_  = "odom";
-  std::string state_twist_frame_id_ = "odom";
-
-  std::string reference_pose_frame_id_  = "odom";
-  std::string reference_twist_frame_id_ = "odom";
+  std::string input_pose_frame_id_  = "odom";
+  std::string input_twist_frame_id_ = "odom";
 
   std::string output_pose_frame_id_  = "odom";
   std::string output_twist_frame_id_ = "odom";
@@ -162,11 +159,11 @@ protected:
 private:
   rclcpp::Time last_time_;
 
-  bool convertPoseStamped(const std::string& frame_id, geometry_msgs::msg::PoseStamped pose);
+  bool convertPoseStamped(const std::string& frame_id, geometry_msgs::msg::PoseStamped& pose);
 
-  bool convertTwistStamped(const std::string& frame_id, geometry_msgs::msg::TwistStamped pose);
+  bool convertTwistStamped(const std::string& frame_id, geometry_msgs::msg::TwistStamped& pose);
 
-  void state_callback(const geometry_msgs::msg::TwistStamped twist_msg);
+  void state_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
   void ref_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
   void ref_twist_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
   void ref_traj_callback(const trajectory_msgs::msg::JointTrajectoryPoint::SharedPtr msg);
@@ -186,10 +183,13 @@ private:
                              as2_msgs::srv::SetControlMode::Response::SharedPtr response);
   bool listPlatformAvailableControlModes();
 
+  std::string getFrameIdByReferenceFrame(uint8_t reference_frame);
+
   bool tryToBypassController(const uint8_t input_mode, uint8_t& output_mode);
+  bool findSuitableControlModes(uint8_t& input_mode, uint8_t& output_mode);
   bool findSuitableOutputControlModeForPlatformInputMode(uint8_t& output_mode,
                                                          const uint8_t input_mode);
-  bool checkSuitabilityInputMode(const uint8_t input_mode, const uint8_t output_mode);
+  bool checkSuitabilityInputMode(uint8_t& input_mode, const uint8_t output_mode);
   void sendCommand();
   bool setPlatformControlMode(const as2_msgs::msg::ControlMode& mode);
 
