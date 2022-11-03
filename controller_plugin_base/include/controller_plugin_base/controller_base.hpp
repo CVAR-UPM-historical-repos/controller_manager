@@ -111,7 +111,8 @@ public:
    * frame will depend on the output control mode
    * @param thrust as2_msgs::msg::Thrust message with the output thrust of the robot
    */
-  virtual void computeOutput(geometry_msgs::msg::PoseStamped& pose,
+  virtual bool computeOutput(double dt,
+                             geometry_msgs::msg::PoseStamped& pose,
                              geometry_msgs::msg::TwistStamped& twist,
                              as2_msgs::msg::Thrust& thrust) = 0;
   /*
@@ -135,6 +136,18 @@ public:
    * @brief Reset the internal state of the controller plugin
    */
   virtual void reset() = 0;
+
+  /*
+   * @brief Get the desired frame_id of the state and reference pose msgs
+   * By default it is "odom"
+   */
+  virtual std::string getDesiredPoseFrameId() { return "odom"; }
+
+  /*
+   * @brief Get the desired frame_id of the state and reference twist msgs
+   * By default it is "base_link"
+   */
+  virtual std::string getDesiredTwistFrameId() { return "base_link"; }
 
   /*
    * @brief Destructor
