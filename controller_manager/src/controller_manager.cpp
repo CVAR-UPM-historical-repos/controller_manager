@@ -121,6 +121,6 @@ void ControllerManager::config_available_control_modes(const std::filesystem::pa
 void ControllerManager::mode_timer_callback() {
   as2_msgs::msg::ControllerInfo msg;
   msg.header.stamp         = this->now();
-  msg.current_control_mode = controller_handler_->getMode();
+  controller_handler_->getMode(msg.input_control_mode, msg.output_control_mode);
   mode_pub_->publish(msg);
 };

@@ -137,7 +137,11 @@ public:
   bool use_bypass_        = false;
   bool bypass_controller_ = false;
 
-  as2_msgs::msg::ControlMode getMode() { return this->control_mode_in_; };
+  void getMode(as2_msgs::msg::ControlMode& mode_in, as2_msgs::msg::ControlMode& mode_out) {
+    mode_in  = control_mode_in_;
+    mode_out = control_mode_out_;
+    return;
+  };
 
   void setInputControlModesAvailables(const std::vector<uint8_t>& available_modes) {
     controller_available_modes_in_ = available_modes;
