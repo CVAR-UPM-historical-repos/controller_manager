@@ -507,17 +507,18 @@ void ControllerHandler::setControlModeSrvCall(
     RCLCPP_ERROR(node_ptr_->get_logger(), "Failed to set plugin control mode to [%s]",
                  as2::control_mode::controlModeToString(_control_mode_msg_plugin_in).c_str());
 
-    auto hover_mode = as2::control_mode::convertUint8tToAS2ControlMode(HOVER_MODE_MASK);
+    as2_msgs::msg::ControlMode hover_mode =
+        as2::control_mode::convertUint8tToAS2ControlMode(HOVER_MODE_MASK);
 
     if (_control_mode_msg_plugin_in.control_mode != hover_mode.control_mode) {
       RCLCPP_WARN(node_ptr_->get_logger(), "Try to set hover mode instead");
-      as2_msgs::srv::SetControlMode::Request::SharedPtr request_hover = nullptr;
-      request_hover->control_mode                                     = hover_mode;
+
+      auto request_hover          = std::make_shared<as2_msgs::srv::SetControlMode::Request>();
+      request_hover->control_mode = hover_mode;
+
       setControlModeSrvCall(request_hover, response);
       if (response->success) {
         RCLCPP_WARN(node_ptr_->get_logger(), "Hover mode set successfully");
-      } else {
-        RCLCPP_ERROR(node_ptr_->get_logger(), "Failed to set hover mode too");
       }
     }
     response->success = false;
