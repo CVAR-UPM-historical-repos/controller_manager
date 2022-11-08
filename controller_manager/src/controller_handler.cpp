@@ -446,6 +446,9 @@ std::string ControllerHandler::getFrameIdByReferenceFrame(uint8_t reference_fram
 void ControllerHandler::setControlModeSrvCall(
     const as2_msgs::srv::SetControlMode::Request::SharedPtr request,
     as2_msgs::srv::SetControlMode::Response::SharedPtr response) {
+  RCLCPP_INFO(node_ptr_->get_logger(), "Try to set input_mode:[%s]",
+              as2::control_mode::controlModeToString(request->control_mode).c_str());
+
   uint8_t _control_mode_plugin_in  = 0;
   uint8_t _control_mode_plugin_out = 0;
 
