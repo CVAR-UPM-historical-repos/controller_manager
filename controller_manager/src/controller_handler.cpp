@@ -446,7 +446,6 @@ std::string ControllerHandler::getFrameIdByReferenceFrame(uint8_t reference_fram
 void ControllerHandler::setControlModeSrvCall(
     const as2_msgs::srv::SetControlMode::Request::SharedPtr request,
     as2_msgs::srv::SetControlMode::Response::SharedPtr response) {
-
   uint8_t _control_mode_plugin_in  = 0;
   uint8_t _control_mode_plugin_out = 0;
 
@@ -512,9 +511,9 @@ void ControllerHandler::setControlModeSrvCall(
 
     if (_control_mode_msg_plugin_in.control_mode != hover_mode.control_mode) {
       RCLCPP_WARN(node_ptr_->get_logger(), "Try to set hover mode instead");
-      as2_msgs::srv::SetControlMode::Request::SharedPtr request = nullptr;
-      request->control_mode = hover_mode;
-      setControlModeSrvCall(request, response);
+      as2_msgs::srv::SetControlMode::Request::SharedPtr request_hover = nullptr;
+      request_hover->control_mode                                     = hover_mode;
+      setControlModeSrvCall(request_hover, response);
       if (response->success) {
         RCLCPP_WARN(node_ptr_->get_logger(), "Hover mode set successfully");
       } else {
@@ -567,7 +566,7 @@ void ControllerHandler::sendCommand() {
   if (bypass_controller_) {
     if (!motion_reference_adquired_) {
       auto &clock = *node_ptr_->get_clock();
-      RCLCPP_INFO_THROTTLE(node_ptr_->get_logger(), clock, 1000, "Waiting for motion reference");
+      RCLCPP_INFO_THROTTLE(node_ptr_->get_logger(), clock, 2000, "Waiting for motion reference");
       return;
     }
     command_pose_  = ref_pose_;
@@ -576,9 +575,8 @@ void ControllerHandler::sendCommand() {
     rclcpp::Time current_time = node_ptr_->now();
     double dt                 = (current_time - last_time_).nanoseconds() / 1.0e9;
     if (dt <= 0) {
-      auto &clk = *node_ptr_->get_clock();
-      RCLCPP_WARN_THROTTLE(node_ptr_->get_logger(), clk, 1000,
-                           "Loop delta time is zero or below. Check your clock");
+      RCLCPP_WARN_ONCE(node_ptr_->get_logger(),
+                       "Loop delta time is zero or below. Check your clock");
       return;
     }
 
