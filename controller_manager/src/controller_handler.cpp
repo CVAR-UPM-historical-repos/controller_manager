@@ -194,7 +194,7 @@ bool ControllerHandler::convertTwistStamped(const std::string &frame_id,
 }
 
 void ControllerHandler::state_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
-  if (!control_mode_established_) {
+  if (!control_mode_established_ || bypass_controller_) {
     return;
   }
 
@@ -218,7 +218,8 @@ void ControllerHandler::state_callback(const geometry_msgs::msg::TwistStamped::S
 
 void ControllerHandler::ref_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
   if (!control_mode_established_ ||
-      control_mode_in_.control_mode == as2_msgs::msg::ControlMode::HOVER) {
+      control_mode_in_.control_mode == as2_msgs::msg::ControlMode::HOVER ||
+      control_mode_in_.control_mode == as2_msgs::msg::ControlMode::UNSET) {
     return;
   }
 
@@ -234,7 +235,8 @@ void ControllerHandler::ref_pose_callback(const geometry_msgs::msg::PoseStamped:
 
 void ControllerHandler::ref_twist_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
   if (!control_mode_established_ ||
-      control_mode_in_.control_mode == as2_msgs::msg::ControlMode::HOVER) {
+      control_mode_in_.control_mode == as2_msgs::msg::ControlMode::HOVER ||
+      control_mode_in_.control_mode == as2_msgs::msg::ControlMode::UNSET) {
     return;
   }
 
@@ -250,7 +252,9 @@ void ControllerHandler::ref_twist_callback(const geometry_msgs::msg::TwistStampe
 
 void ControllerHandler::ref_traj_callback(
     const trajectory_msgs::msg::JointTrajectoryPoint::SharedPtr msg) {
-  if (!control_mode_established_) {
+  if (!control_mode_established_ ||
+      control_mode_in_.control_mode == as2_msgs::msg::ControlMode::HOVER ||
+      control_mode_in_.control_mode == as2_msgs::msg::ControlMode::UNSET) {
     return;
   }
 
@@ -265,7 +269,8 @@ void ControllerHandler::platform_info_callback(const as2_msgs::msg::PlatformInfo
 }
 
 void ControllerHandler::control_timer_callback() {
-  if (!platform_info_.offboard || !platform_info_.armed) {
+  if (!platform_info_.offboard || !platform_info_.armed ||
+      control_mode_out_.control_mode == as2_msgs::msg::ControlMode::HOVER) {
     return;
   }
 
@@ -278,7 +283,6 @@ void ControllerHandler::control_timer_callback() {
   if (!state_adquired_) {
     auto &clock = *node_ptr_->get_clock();
     RCLCPP_INFO_THROTTLE(node_ptr_->get_logger(), clock, 1000, "Waiting for odometry ");
-
     return;
   }
 
@@ -412,6 +416,26 @@ bool ControllerHandler::findSuitableOutputControlModeForPlatformInputMode(
   return true;
 }
 
+bool ControllerHandler::trySetPlatformHover() {
+  // Check if HOVER_MODE_MASK is available in platform_available_modes_in_
+  for (auto &mode : platform_available_modes_in_) {
+    if ((mode & MATCH_MODE) == HOVER_MODE_MASK) {
+      as2_msgs::msg::ControlMode _control_mode_msg_plugin_out =
+          as2::control_mode::convertUint8tToAS2ControlMode(HOVER_MODE_MASK);
+
+      // set the platform in hover mode
+      if (setPlatformControlMode(_control_mode_msg_plugin_out)) {
+        RCLCPP_INFO(node_ptr_->get_logger(), "Platform set in HOVER mode");
+        return true;
+      } else {
+        RCLCPP_ERROR(node_ptr_->get_logger(), "Failed to set platform control mode to HOVER");
+        return false;
+      }
+    }
+  }
+  return false;
+}
+
 bool ControllerHandler::findSuitableControlModes(uint8_t &input_mode, uint8_t &output_mode) {
   // check if the input mode is available. Get the best output mode
   bool success = findSuitableOutputControlModeForPlatformInputMode(output_mode, input_mode);
@@ -473,12 +497,17 @@ void ControllerHandler::setControlModeSrvCall(
   // COMPONENT)
   bypass_controller_ = false;
   if (use_bypass_) {
-    bypass_controller_ = tryToBypassController(_control_mode_plugin_in, _control_mode_plugin_out);
+    if (_control_mode_plugin_in == HOVER_MODE_MASK) {
+      if (trySetPlatformHover()) {
+        bypass_controller_       = true;
+        _control_mode_plugin_out = HOVER_MODE_MASK;
+      }
+    } else {
+      bypass_controller_ = tryToBypassController(_control_mode_plugin_in, _control_mode_plugin_out);
+    }
   }
 
   if (bypass_controller_) {
-    _control_mode_plugin_in = _control_mode_plugin_out;
-
     RCLCPP_INFO(node_ptr_->get_logger(), "Bypassing controller");
     _control_mode_plugin_in = UNSET_MODE_MASK;
   } else {

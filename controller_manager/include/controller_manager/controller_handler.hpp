@@ -189,6 +189,7 @@ private:
 
   std::string getFrameIdByReferenceFrame(uint8_t reference_frame);
 
+  bool trySetPlatformHover();
   bool tryToBypassController(const uint8_t input_mode, uint8_t& output_mode);
   bool findSuitableControlModes(uint8_t& input_mode, uint8_t& output_mode);
   bool findSuitableOutputControlModeForPlatformInputMode(uint8_t& output_mode,
