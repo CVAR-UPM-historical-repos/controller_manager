@@ -280,7 +280,7 @@ void ControllerHandler::control_timer_callback() {
     return;
   }
 
-  if (!state_adquired_) {
+  if (!state_adquired_ && !bypass_controller_) {
     auto &clock = *node_ptr_->get_clock();
     RCLCPP_INFO_THROTTLE(node_ptr_->get_logger(), clock, 1000, "Waiting for odometry ");
     return;
