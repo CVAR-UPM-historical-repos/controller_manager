@@ -39,13 +39,15 @@
 #ifndef CONTROLLER_BASE_HPP
 #define CONTROLLER_BASE_HPP
 
+
+#include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
+
 #include "as2_core/node.hpp"
 #include "as2_msgs/msg/control_mode.hpp"
 #include "as2_msgs/msg/thrust.hpp"
-#include "geometry_msgs/msg/pose_stamped.hpp"
-#include "geometry_msgs/msg/twist_stamped.hpp"
-#include "rclcpp/rclcpp.hpp"
-#include "trajectory_msgs/msg/joint_trajectory_point.hpp"
+#include "as2_msgs/msg/trajectory_point.hpp"
 
 namespace controller_plugin_base {
 
@@ -96,10 +98,10 @@ public:
   virtual void updateReference(const geometry_msgs::msg::TwistStamped& ref){};
   /*
    * @brief Update the reference to be used by the controller plugin
-   * @param ref trajectory_msgs::msg::JointTrajectoryPoint message with the current reference of
+   * @param ref as2_msgs::msg::TrajectoryPoint message with the current reference of
    * the robot in the "odom" frame
    */
-  virtual void updateReference(const trajectory_msgs::msg::JointTrajectoryPoint& ref){};
+  virtual void updateReference(const as2_msgs::msg::TrajectoryPoint& ref){};
 
   // virtual void updateReference(const as2_msgs::msg::Thrust& ref){};
 

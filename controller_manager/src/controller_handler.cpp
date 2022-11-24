@@ -85,7 +85,7 @@ ControllerHandler::ControllerHandler(
   ref_twist_sub_ = node_ptr_->create_subscription<geometry_msgs::msg::TwistStamped>(
       as2_names::topics::motion_reference::twist, as2_names::topics::motion_reference::qos,
       std::bind(&ControllerHandler::ref_twist_callback, this, std::placeholders::_1));
-  ref_traj_sub_ = node_ptr_->create_subscription<trajectory_msgs::msg::JointTrajectoryPoint>(
+  ref_traj_sub_ = node_ptr_->create_subscription<as2_msgs::msg::TrajectoryPoint>(
       as2_names::topics::motion_reference::trajectory, as2_names::topics::motion_reference::qos,
       std::bind(&ControllerHandler::ref_traj_callback, this, std::placeholders::_1));
   platform_info_sub_ = node_ptr_->create_subscription<as2_msgs::msg::PlatformInfo>(
@@ -251,7 +251,7 @@ void ControllerHandler::ref_twist_callback(const geometry_msgs::msg::TwistStampe
 }
 
 void ControllerHandler::ref_traj_callback(
-    const trajectory_msgs::msg::JointTrajectoryPoint::SharedPtr msg) {
+    const as2_msgs::msg::TrajectoryPoint::SharedPtr msg) {
   if (!control_mode_established_ ||
       control_mode_in_.control_mode == as2_msgs::msg::ControlMode::HOVER ||
       control_mode_in_.control_mode == as2_msgs::msg::ControlMode::UNSET) {
