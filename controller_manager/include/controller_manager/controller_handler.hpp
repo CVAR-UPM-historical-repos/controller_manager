@@ -163,10 +163,6 @@ protected:
 private:
   rclcpp::Time last_time_;
 
-  bool convertPoseStamped(const std::string& frame_id, geometry_msgs::msg::PoseStamped& pose);
-
-  bool convertTwistStamped(const std::string& frame_id, geometry_msgs::msg::TwistStamped& pose);
-
   void state_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
   void ref_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
   void ref_twist_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
