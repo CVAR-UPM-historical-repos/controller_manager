@@ -153,23 +153,23 @@ void ControllerHandler::reset() {
   motion_reference_adquired_ = false;
 }
 
-void ControllerHandler::state_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
+void ControllerHandler::state_callback(
+    const geometry_msgs::msg::TwistStamped::SharedPtr _twist_msg) {
   if (!control_mode_established_ || bypass_controller_) {
     return;
   }
 
   geometry_msgs::msg::PoseStamped pose_msg;
-  geometry_msgs::msg::TwistStamped twist_msg = *msg;
-  if (!tf_handler_.tryConvert(twist_msg, input_twist_frame_id_)) {
-    return;
-  }
+  geometry_msgs::msg::TwistStamped twist_msg;
+
   try {
-    pose_msg = tf_handler_.getPoseStamped(input_pose_frame_id_, flu_frame_id_,
-                                          tf2_ros::fromMsg(twist_msg.header.stamp));
+    auto [pose_msg, twist_msg] = tf_handler_.getState(*_twist_msg, input_pose_frame_id_,
+                                                      input_twist_frame_id_, flu_frame_id_);
   } catch (tf2::TransformException &ex) {
-    RCLCPP_WARN(node_ptr_->get_logger(), "Could not get state pose transform: %s", ex.what());
+    RCLCPP_WARN(node_ptr_->get_logger(), "Could not get transform: %s", ex.what());
     return;
   }
+
   state_adquired_ = true;
   state_pose_     = pose_msg;
   state_twist_    = twist_msg;
