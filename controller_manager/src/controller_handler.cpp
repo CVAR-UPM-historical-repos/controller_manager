@@ -159,21 +159,19 @@ void ControllerHandler::state_callback(
     return;
   }
 
-  geometry_msgs::msg::PoseStamped pose_msg;
-  geometry_msgs::msg::TwistStamped twist_msg;
-
   try {
-    auto [pose_msg, twist_msg] = tf_handler_.getState(*_twist_msg, input_pose_frame_id_,
-                                                      input_twist_frame_id_, flu_frame_id_);
+    auto [pose_msg, twist_msg] = tf_handler_.getState(*_twist_msg, input_twist_frame_id_,
+                                                      input_pose_frame_id_, flu_frame_id_);
+
+    state_adquired_ = true;
+    state_pose_     = pose_msg;
+    state_twist_    = twist_msg;
+    if (!bypass_controller_) controller_ptr_->updateState(state_pose_, state_twist_);
+
   } catch (tf2::TransformException &ex) {
     RCLCPP_WARN(node_ptr_->get_logger(), "Could not get transform: %s", ex.what());
-    return;
   }
-
-  state_adquired_ = true;
-  state_pose_     = pose_msg;
-  state_twist_    = twist_msg;
-  if (!bypass_controller_) controller_ptr_->updateState(state_pose_, state_twist_);
+  return;
 }
 
 void ControllerHandler::ref_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
