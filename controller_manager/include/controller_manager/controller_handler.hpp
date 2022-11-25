@@ -52,9 +52,8 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/time_synchronizer.h>
 #include <rcl/time.h>
-#include "geometry_msgs/msg/pose_stamped.hpp"
-#include "geometry_msgs/msg/twist_stamped.hpp"
-#include "trajectory_msgs/msg/joint_trajectory_point.hpp"
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
 
 #include "as2_core/names/services.hpp"
 #include "as2_core/names/topics.hpp"
@@ -62,6 +61,7 @@
 #include "as2_core/synchronous_service_client.hpp"
 #include "as2_core/utils/control_mode_utils.hpp"
 #include "as2_core/utils/tf_utils.hpp"
+#include "as2_msgs/msg/trajectory_point.hpp"
 #include "as2_msgs/msg/control_mode.hpp"
 #include "as2_msgs/msg/platform_info.hpp"
 #include "as2_msgs/msg/thrust.hpp"
@@ -101,7 +101,7 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr ref_pose_sub_;
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr ref_twist_sub_;
   rclcpp::Subscription<as2_msgs::msg::PlatformInfo>::SharedPtr platform_info_sub_;
-  rclcpp::Subscription<trajectory_msgs::msg::JointTrajectoryPoint>::SharedPtr ref_traj_sub_;
+  rclcpp::Subscription<as2_msgs::msg::TrajectoryPoint>::SharedPtr ref_traj_sub_;
 
   rclcpp::Publisher<as2_msgs::msg::Thrust>::SharedPtr thrust_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
@@ -163,21 +163,17 @@ protected:
 private:
   rclcpp::Time last_time_;
 
-  bool convertPoseStamped(const std::string& frame_id, geometry_msgs::msg::PoseStamped& pose);
-
-  bool convertTwistStamped(const std::string& frame_id, geometry_msgs::msg::TwistStamped& pose);
-
   void state_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
   void ref_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
   void ref_twist_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
-  void ref_traj_callback(const trajectory_msgs::msg::JointTrajectoryPoint::SharedPtr msg);
+  void ref_traj_callback(const as2_msgs::msg::TrajectoryPoint::SharedPtr msg);
   void platform_info_callback(const as2_msgs::msg::PlatformInfo::SharedPtr msg);
 
   geometry_msgs::msg::PoseStamped state_pose_;
   geometry_msgs::msg::TwistStamped state_twist_;
   geometry_msgs::msg::PoseStamped ref_pose_;
   geometry_msgs::msg::TwistStamped ref_twist_;
-  trajectory_msgs::msg::JointTrajectoryPoint ref_traj_;
+  as2_msgs::msg::TrajectoryPoint ref_traj_;
   geometry_msgs::msg::PoseStamped command_pose_;
   geometry_msgs::msg::TwistStamped command_twist_;
   as2_msgs::msg::Thrust command_thrust_;
